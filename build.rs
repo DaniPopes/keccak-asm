@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::{env, fs, path::Path, process::Command};
 
 // (script, outfile)
@@ -18,12 +20,12 @@ const HEADERS: &[&str] = &["cryptogams/arm/arm_arch.h"];
 
 fn main() {
     // run Perl scripts
-    if Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/cryptogams")).exists() {
-        for &(script, output) in FILES {
-            rerun_if_changed(script);
-            perl(script, output);
-        }
-    }
+    // if Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/cryptogams")).exists() {
+    //     for &(script, output) in FILES {
+    //         rerun_if_changed(script);
+    //         perl(script, output);
+    //     }
+    // }
 
     for &path in HEADERS {
         rerun_if_changed(path);
@@ -62,6 +64,7 @@ fn main() {
         s => panic!("Unsupported target arch: {s}"),
     };
 
+    // println!("cargo:warning={output}");
     cc.flag("-c").file(output).compile("keccak1600");
 }
 

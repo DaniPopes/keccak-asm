@@ -1,5 +1,6 @@
 .text
 
+.globl __KeccakF1600
 .type	__KeccakF1600,@function
 .align	32
 __KeccakF1600:
