@@ -10,8 +10,6 @@
 #include <string.h>
 #include "internal/sha3.h"
 
-void SHA3_squeeze(uint64_t A[5][5], unsigned char *out, size_t len, size_t r);
-
 void ossl_sha3_reset(KECCAK1600_CTX *ctx)
 {
     memset(ctx->A, 0, sizeof(ctx->A));

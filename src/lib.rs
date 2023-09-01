@@ -1,10 +1,13 @@
 #![no_std]
 
-use cfg_if::cfg_if;
-use core::{fmt, mem, ptr};
-
 #[cfg(not(any(target_arch = "x86_64", target_arch = "x86", target_arch = "aarch64")))]
 compile_error!("crate can only be used on x86, x86-64 and aarch64 architectures");
+
+use cfg_if::cfg_if;
+use core::fmt;
+
+mod state;
+use state::Sha3State;
 
 type Buffer = [[u64; 5]; 5];
 
@@ -100,10 +103,7 @@ macro_rules! impl_sha3 {
     ($name:ident, $bits:literal, $pad:expr) => {
         #[allow(non_snake_case)]
         pub struct $name {
-            A: Buffer,
-            /// Used bytes in below buffer.
-            bufsz: usize,
-            buf: [u8; (1600 / 8) - 32],
+            inner: Sha3State<$bits, $pad>,
         }
 
         impl fmt::Debug for $name {
@@ -113,7 +113,6 @@ macro_rules! impl_sha3 {
             }
         }
 
-        #[allow(non_upper_case_globals)]
         impl $name {
             /// Output length.
             pub const OUT: usize = $bits / 8;
@@ -124,80 +123,18 @@ macro_rules! impl_sha3 {
 
             #[inline]
             pub fn new() -> Self {
-                unsafe { mem::MaybeUninit::zeroed().assume_init() }
+                Self { inner: Sha3State::new() }
             }
 
             #[inline]
             pub fn reset(&mut self) {
-                // unsafe { memset(self.A.as_mut_ptr().cast(), 0, mem::size_of::<Buffer>()) };
-                // self.bufsz = 0;
-                *self = Self::new();
+                self.inner.reset();
             }
 
             // https://github.com/openssl/openssl/blob/60421893a286bb9eb7fb7c2454b84af9778ffca4/crypto/sha/sha3.c#L45
             #[inline]
             pub fn update(&mut self, inp: &[u8]) {
-                unsafe { self._update(inp.as_ptr(), inp.len()) }
-            }
-
-            #[inline(always)]
-            unsafe fn _update(&mut self, mut inp: *const u8, mut len: usize) {
-                if len == 0 {
-                    return
-                }
-
-                const bsz: usize = $name::BSZ;
-                let num = self.bufsz;
-                let mut rem;
-                if num != 0 {
-                    // process intermediate buffer
-                    rem = bsz - num;
-                    if len < rem {
-                        memcpy(self.buf().add(num), inp, len);
-                        self.bufsz += len;
-                        return
-                    }
-                    /*
-                     * We have enough data to fill or overflow the intermediate
-                     * A. So we append |rem| bytes and process the block,
-                     * leaving the rest for later processing...
-                     */
-                    memcpy(self.buf().add(num), inp, rem);
-                    inp = inp.add(rem);
-                    len -= rem;
-                    SHA3_absorb(&mut self.A, self.buf.as_ptr(), bsz, bsz);
-                    self.bufsz = 0;
-                    /* ctx->buf is processed, ctx->num is guaranteed to be zero */
-                }
-
-                rem = if len >= bsz { SHA3_absorb(&mut self.A, inp, len, bsz) } else { len };
-
-                if rem > 0 {
-                    unsafe {
-                        memcpy(self.buf(), inp.add(len).sub(rem), rem);
-                    }
-                    self.bufsz = rem;
-                }
-            }
-
-            // https://github.com/openssl/openssl/blob/60421893a286bb9eb7fb7c2454b84af9778ffca4/crypto/sha/sha3.c#L87
-            #[inline]
-            unsafe fn _final(&mut self, out: &mut [u8; Self::OUT]) {
-                const bsz: usize = $name::BSZ;
-                let num = self.bufsz;
-
-                /*
-                 * Pad the data with 10*1. Note that |num| can be |bsz - 1|
-                 * in which case both byte operations below are performed on
-                 * same byte...
-                 */
-                memset(self.buf().add(num), 0, bsz - num);
-                *self.buf().add(num) = Self::PAD;
-                *self.buf().add(bsz - 1) |= 0x80;
-
-                SHA3_absorb(&mut self.A, self.buf(), bsz, bsz);
-
-                SHA3_squeeze(&mut self.A, out.as_mut_ptr(), Self::OUT, bsz);
+                unsafe { self.inner.update(inp.as_ptr(), inp.len()) }
             }
 
             #[inline]
@@ -209,7 +146,7 @@ macro_rules! impl_sha3 {
 
             #[inline]
             pub fn finalize_into(mut self, out: &mut [u8; Self::OUT]) {
-                unsafe { self._final(out) };
+                unsafe { self.inner.finalize(out.as_mut_ptr()) };
             }
 
             #[inline]
@@ -225,13 +162,15 @@ macro_rules! impl_sha3 {
                 this.update(inp);
                 this.finalize_into(out);
             }
-
-            #[inline(always)]
-            fn buf(&mut self) -> *mut u8 {
-                self.buf.as_mut_ptr()
-            }
         }
     };
+}
+
+trait CoreTrait {
+    fn new() -> Self;
+    fn reset(&mut self);
+    unsafe fn update(&mut self, inp: *const u8, len: usize);
+    unsafe fn finalize(&mut self, out: *mut u8);
 }
 
 // Paddings
@@ -276,16 +215,6 @@ pub fn sha3_sponge(inp: &[u8], out: &mut [u8], r: usize) {
         SHA3_absorb(&mut a, inp.as_ptr(), inp.len(), r);
         SHA3_squeeze(&mut a, out.as_mut_ptr(), out.len(), r);
     }
-}
-
-#[inline(always)]
-unsafe fn memcpy(dst: *mut u8, src: *const u8, count: usize) {
-    ptr::copy_nonoverlapping(src, dst, count);
-}
-
-#[inline(always)]
-unsafe fn memset(dst: *mut u8, val: u8, count: usize) {
-    ptr::write_bytes(dst, val, count);
 }
 
 #[cfg(test)]
