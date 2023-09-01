@@ -1,0 +1,3 @@
+[submodule "cryptogams"]
+	path = cryptogams
+	url = https://github.com/dot-asm/cryptogams
