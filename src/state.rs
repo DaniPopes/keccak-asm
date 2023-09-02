@@ -89,7 +89,7 @@ impl<const BITS: usize, const PAD: u8> Sha3State<BITS, PAD> {
             self.bufsz = 0;
         }
         // Absorb the input - rem = leftover part of the input < blocksize)
-        rem = SHA3_absorb(&mut self.A, inp, len, bsz);
+        rem = if len >= bsz { SHA3_absorb(&mut self.A, inp, len, bsz) } else { len };
         // Copy the leftover bit of the input into the buffer
         if rem > 0 {
             memcpy(self.buf(), inp.add(len).sub(rem), rem);
