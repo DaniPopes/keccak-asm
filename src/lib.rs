@@ -3,13 +3,10 @@
 #[cfg(not(any(target_arch = "x86_64", target_arch = "x86", target_arch = "aarch64")))]
 compile_error!("crate can only be used on x86, x86-64 and aarch64 architectures");
 
-use cfg_if::cfg_if;
 use core::fmt;
 
-// TODO: Use Rust version instead of calling C
 mod state;
-
-mod state_c;
+use state::Sha3State;
 
 type Buffer = [u8; 200];
 
@@ -23,7 +20,8 @@ extern "C" {
     pub fn SHA3_squeeze(a: *mut Buffer, out: *mut u8, len: usize, r: usize);
 }
 
-cfg_if! {
+#[cfg(TODO)]
+cfg_if::cfg_if! {
     // These do not have a global `KeccakF1600` symbol
     if #[cfg(all(target_arch = "x86_64", any(target_feature = "avx2", target_feature = "avx512f", target_feature = "avx512vl")))] {
         #[link(name = "keccak1600", kind = "static")]
@@ -101,11 +99,18 @@ cfg_if! {
     }
 }
 
+/// Safe [`KeccakF1600`].
+#[inline(always)]
+#[cfg(TODO)]
+pub fn keccak_f1600(buf: &mut Buffer) {
+    unsafe { KeccakF1600(buf) }
+}
+
 macro_rules! impl_sha3 {
     ($name:ident, $bits:literal, $pad:expr) => {
         #[allow(non_snake_case)]
         pub struct $name {
-            inner: state_c::Sha3State<$bits, $pad>,
+            inner: Sha3State<$bits, $pad>,
         }
 
         impl fmt::Debug for $name {
@@ -119,13 +124,13 @@ macro_rules! impl_sha3 {
             /// Output length.
             pub const OUT: usize = $bits / 8;
             /// Block size.
-            pub const BSZ: usize = (1600 - $bits) / 8;
+            pub const BSZ: usize = (1600 - $bits * 2) / 8;
             /// Padding byte.
             pub const PAD: u8 = $pad;
 
             #[inline]
             pub fn new() -> Self {
-                Self { inner: state_c::Sha3State::new() }
+                Self { inner: Sha3State::new() }
             }
 
             #[inline]
@@ -184,12 +189,6 @@ const SHA3: u8 = 0x06;
 impl_sha3!(Keccak256, 256, KECCAK);
 impl_sha3!(Sha3_256, 256, SHA3);
 
-/// Safe [`KeccakF1600`].
-#[inline(always)]
-pub fn keccak_f1600(buf: &mut Buffer) {
-    unsafe { KeccakF1600(buf) }
-}
-
 #[cfg(test)]
 mod tests {
     use sha3::Digest;
@@ -219,6 +218,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(TODO)]
     fn keccakf1600() {
         let mut buffer = [69; 200];
         let cpy = buffer;

@@ -63,7 +63,7 @@ impl<const bitlen: usize, const pad: u8> CoreTrait for Sha3State<bitlen, pad> {
     }
 
     // https://github.com/openssl/openssl/blob/60421893a286bb9eb7fb7c2454b84af9778ffca4/crypto/sha/sha3.c#L87
-    #[inline]
+    #[inline(always)]
     unsafe fn finalize(&mut self, out: *mut u8) {
         let bsz: usize = Self::bsz;
 
@@ -86,7 +86,7 @@ impl<const bitlen: usize, const pad: u8> CoreTrait for Sha3State<bitlen, pad> {
 
 impl<const bitlen: usize, const pad: u8> Sha3State<bitlen, pad> {
     const out: usize = bitlen / 8;
-    const bsz: usize = (1600 - bitlen) / 8;
+    const bsz: usize = (1600 - bitlen * 2) / 8;
 
     #[inline(always)]
     fn buf(&mut self) -> *mut u8 {

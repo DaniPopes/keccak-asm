@@ -68,7 +68,7 @@ fn main() {
     };
 
     // println!("cargo:warning={output}");
-    cc.file(output).file("src/sha3.c").compile("keccak1600");
+    cc.file(output).compile("keccak1600");
 }
 
 fn perl(path: &str, to: &str) {
