@@ -1,22 +1,6 @@
-#![allow(dead_code)]
-
 use std::path::Path;
 use std::process::Command;
 use std::{env, fs};
-
-// (script, outfile)
-const CRYPTOGAMS_FILES: &[(&str, &str)] = &[
-    // arm
-    ("cryptogams/arm/keccak1600-armv4.pl", "src/SHA3/armv4.s"),
-    ("cryptogams/arm/keccak1600-armv8.pl", "src/SHA3/armv8.s"),
-    // x86
-    ("cryptogams/x86/keccak1600-mmx.pl", "src/SHA3/x86.s"),
-    // x86_64
-    ("cryptogams/x86_64/keccak1600-avx2.pl", "src/SHA3/x86_64-avx2.s"),
-    ("cryptogams/x86_64/keccak1600-avx512.pl", "src/SHA3/x86_64-avx512f.s"),
-    ("cryptogams/x86_64/keccak1600-avx512vl.pl", "src/SHA3/x86_64-avx512vl.s"),
-    ("cryptogams/x86_64/keccak1600-x86_64.pl", "src/SHA3/x86_64.s"),
-];
 
 const CRYPTOGAMS_HEADERS: &[&str] = &["cryptogams/arm/arm_arch.h"];
 
@@ -36,25 +20,12 @@ const XKCP_HEADERS: &[&str] = &[
 ];
 
 fn main() {
-    if Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/cryptogams")).exists() {
-        // run Perl scripts
-        for &(script, output) in CRYPTOGAMS_FILES {
-            rerun_if_changed(script);
-            perl(script, output);
-        }
-
-        // update headers
-        CRYPTOGAMS_HEADERS.iter().copied().for_each(include);
-    }
-
+    CRYPTOGAMS_HEADERS.iter().copied().for_each(include);
     if Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/XKCP")).exists() {
-        // copy assembly files
         for &(path, output) in XKCP_FILES {
             rerun_if_changed(path);
             fs::copy(path, output).unwrap();
         }
-
-        // update headers
         XKCP_HEADERS.iter().copied().for_each(include);
     }
 
@@ -63,34 +34,63 @@ fn main() {
     let target_features = target_features.split(',').collect::<Vec<_>>();
     let feature = |s: &str| target_features.iter().any(|&f| f == s);
 
-    let mut cc = cc::Build::new();
-    cc.include("include");
-
-    let sha3 = match target_arch.as_str() {
-        "x86" => "src/SHA3/x86.s",
+    let script = match target_arch.as_str() {
+        "x86" => "cryptogams/x86/keccak1600-mmx.pl",
         "x86_64" => {
             if feature("avx512vl") {
-                "src/SHA3/x86_64-avx512vl.s"
+                "cryptogams/x86_64/keccak1600-avx512vl.pl"
             } else if feature("avx512f") {
-                "src/SHA3/x86_64-avx512f.s"
+                "cryptogams/x86_64/keccak1600-avx512.pl"
             } else if feature("avx2") {
-                "src/SHA3/x86_64-avx2.s"
+                "cryptogams/x86_64/keccak1600-avx2.pl"
             } else {
-                "src/SHA3/x86_64.s"
+                "cryptogams/x86_64/keccak1600-x86_64.pl"
             }
         }
-        // TODO
         "aarch64" => {
-            if target_features.iter().any(|&f| f.contains("v8")) {
-                "src/SHA3/armv8.s"
+            if feature("sha3") || feature("crypto") {
+                "cryptogams/arm/keccak1600-armv4.pl"
             } else {
-                "src/SHA3/armv4.s"
+                "cryptogams/arm/keccak1600-armv8.pl"
             }
         }
         s => panic!("Unsupported target arch: {s}"),
     };
+    let src = Path::new(script).file_stem().unwrap().to_str().unwrap();
+    let sha3 = Path::new(&env("OUT_DIR")).join(format!("{src}.s"));
 
-    let keccak1600p = match target_arch.as_str() {
+    let os = env("CARGO_CFG_TARGET_OS");
+    let environ = env("CARGO_CFG_TARGET_ENV");
+    let family = env("CARGO_CFG_TARGET_FAMILY");
+    let mut flavor = match target_arch.as_str() {
+        "aarch64" => match os.as_str() {
+            "ios" => Some("ios64"),
+            "windows" => Some("win64"),
+            "linux" => Some("linux64"),
+            _ => None,
+        },
+        "x86_64" => match os.as_str() {
+            "macos" => Some("macosx"),
+            "windows" if environ == "gnu" => Some("mingw64"),
+            _ if family == "unix" => Some("elf"),
+            _ => None,
+        },
+        "x86" => match os.as_str() {
+            "windows" => Some("win32n"),
+            _ => Some("elf"),
+        },
+        _ => None,
+    }
+    .map(String::from);
+    if let Some(s) = &mut flavor {
+        if target_arch == "aarch64" && feature("sha3") {
+            s.push_str("+sha3");
+        }
+    }
+
+    perl(script, flavor.as_deref(), sha3.to_str().unwrap());
+
+    let keccakp1600 = match target_arch.as_str() {
         "x86_64" => {
             if feature("avx512vl") && feature("avx512f") {
                 Some("src/KeccakP-1600/x86_64-avx512.s")
@@ -104,18 +104,25 @@ fn main() {
         // TODO: arm
         _ => None,
     };
-    if let Some(keccak1600p) = keccak1600p {
+
+    let mut cc = cc::Build::new();
+    cc.include("include");
+
+    if let Some(keccakp1600) = keccakp1600 {
         println!("cargo:rustc-cfg=keccakp1600");
-        cc.file(keccak1600p);
+        cc.file(keccakp1600);
     }
 
     cc.file(sha3).compile("keccak");
 }
 
-fn perl(path: &str, to: &str) {
+fn perl(path: &str, flavor: Option<&str>, to: &str) {
     let mut cmd = Command::new("perl");
     cmd.arg(path);
-    cmd.args(["elf", to]);
+    if let Some(flavor) = flavor {
+        cmd.arg(flavor);
+    }
+    cmd.arg(to);
     let out = cmd.output().unwrap();
     if !out.status.success() {
         panic!("perl for {path} failed:\n{}", String::from_utf8_lossy(&out.stderr));
