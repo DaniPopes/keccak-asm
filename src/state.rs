@@ -13,15 +13,16 @@ pub(crate) struct Sha3State<const bitlen: usize, const pad: u8> {
 impl<const bitlen: usize, const pad: u8> CoreTrait for Sha3State<bitlen, pad> {
     #[inline(always)]
     fn new() -> Self {
-        unsafe { mem::MaybeUninit::zeroed().assume_init() }
+        unsafe { mem::zeroed() }
     }
 
     #[inline(always)]
     fn reset(&mut self) {
-        todo!()
+        self.A = unsafe { mem::zeroed() };
+        self.bufsz = 0;
     }
 
-    // https://github.com/openssl/openssl/blob/60421893a286bb9eb7fb7c2454b84af9778ffca4/crypto/sha/sha3.c#L45
+    // https://github.com/openssl/openssl/blob/9ff816106c2b2ccbffe5c4e3619a840547088674/providers/implementations/digests/sha3_prov.c#L68
     #[inline(always)]
     unsafe fn update(&mut self, mut inp: *const u8, mut len: usize) {
         let bsz: usize = Self::bsz;
@@ -32,29 +33,27 @@ impl<const bitlen: usize, const pad: u8> CoreTrait for Sha3State<bitlen, pad> {
 
         let num = self.bufsz;
         let mut rem;
+        /* Is there anything in the buffer already ? */
         if num != 0 {
-            /* process intermediate buffer */
+            /* Calculate how much space is left in the buffer */
             rem = bsz - num;
+            /* If the new input does not fill the buffer then just add it */
             if len < rem {
                 memcpy(self.buf().add(num), inp, len);
                 self.bufsz += len;
                 return
             }
-            /*
-             * We have enough data to fill or overflow the intermediate
-             * A. So we append |rem| bytes and process the block,
-             * leaving the rest for later processing...
-             */
+            /* otherwise fill up the buffer and absorb the buffer */
             memcpy(self.buf().add(num), inp, rem);
+            /* Update the input pointer */
             inp = inp.add(rem);
             len -= rem;
             SHA3_absorb(&mut self.A, self.buf.as_ptr(), bsz, bsz);
             self.bufsz = 0;
-            /* ctx->buf is processed, ctx->num is guaranteed to be zero */
         }
-
-        rem = if len >= bsz { SHA3_absorb(&mut self.A, inp, len, bsz) } else { len };
-
+        /* Absorb the input - rem = leftover part of the input < blocksize) */
+        rem = SHA3_absorb(&mut self.A, inp, len, bsz);
+        /* Copy the leftover bit of the input into the buffer */
         if rem > 0 {
             unsafe {
                 memcpy(self.buf(), inp.add(len).sub(rem), rem);

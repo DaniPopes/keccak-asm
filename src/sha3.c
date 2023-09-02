@@ -8,7 +8,7 @@
  */
 
 #include <string.h>
-#include "internal/sha3.h"
+#include "sha3.h"
 
 void ossl_sha3_reset(KECCAK1600_CTX *ctx)
 {

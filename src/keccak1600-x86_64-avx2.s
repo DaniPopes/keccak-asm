@@ -1,6 +1,5 @@
 .text
 
-.globl __KeccakF1600
 .type	__KeccakF1600,@function
 .align	32
 __KeccakF1600:
@@ -150,7 +149,6 @@ __KeccakF1600:
 
 	ret
 .size	__KeccakF1600,.-__KeccakF1600
-
 .globl	SHA3_absorb
 .type	SHA3_absorb,@function
 .align	32

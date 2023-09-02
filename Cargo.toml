@@ -14,4 +14,5 @@ digest = "0.10.7"
 cc = "1.0.83"
 
 [dev-dependencies]
+hex = "0.4.3"
 sha3 = "0.10.8"

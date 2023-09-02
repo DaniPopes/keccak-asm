@@ -20,12 +20,12 @@ const HEADERS: &[&str] = &["cryptogams/arm/arm_arch.h"];
 
 fn main() {
     // run Perl scripts
-    // if Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/cryptogams")).exists() {
-    //     for &(script, output) in FILES {
-    //         rerun_if_changed(script);
-    //         perl(script, output);
-    //     }
-    // }
+    if Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/cryptogams")).exists() {
+        for &(script, output) in FILES {
+            rerun_if_changed(script);
+            perl(script, output);
+        }
+    }
 
     for &path in HEADERS {
         rerun_if_changed(path);
@@ -44,10 +44,13 @@ fn main() {
         "x86" => "src/keccak1600-x86.s",
         "x86_64" => {
             if feature("avx512vl") {
+                cc.flag("-mavx512vl");
                 "src/keccak1600-x86_64-avx512vl.s"
             } else if feature("avx512f") {
+                cc.flag("-mavx512f");
                 "src/keccak1600-x86_64-avx512f.s"
             } else if feature("avx2") {
+                cc.flag("-mavx2");
                 "src/keccak1600-x86_64-avx2.s"
             } else {
                 "src/keccak1600-x86_64.s"
@@ -65,7 +68,7 @@ fn main() {
     };
 
     // println!("cargo:warning={output}");
-    cc.flag("-c").file(output).compile("keccak1600");
+    cc.file(output).file("src/sha3.c").compile("keccak1600");
 }
 
 fn perl(path: &str, to: &str) {

@@ -6,10 +6,12 @@ compile_error!("crate can only be used on x86, x86-64 and aarch64 architectures"
 use cfg_if::cfg_if;
 use core::fmt;
 
+// TODO: Use Rust version instead of calling C
 mod state;
-use state::Sha3State;
 
-type Buffer = [[u64; 5]; 5];
+mod state_c;
+
+type Buffer = [u8; 200];
 
 // https://github.com/openssl/openssl/blob/60421893a286bb9eb7fb7c2454b84af9778ffca4/crypto/sha/keccak1600.c#L14-L17
 // size_t SHA3_absorb(uint64_t A[5][5], const unsigned char *inp, size_t len,
@@ -103,7 +105,7 @@ macro_rules! impl_sha3 {
     ($name:ident, $bits:literal, $pad:expr) => {
         #[allow(non_snake_case)]
         pub struct $name {
-            inner: Sha3State<$bits, $pad>,
+            inner: state_c::Sha3State<$bits, $pad>,
         }
 
         impl fmt::Debug for $name {
@@ -123,7 +125,7 @@ macro_rules! impl_sha3 {
 
             #[inline]
             pub fn new() -> Self {
-                Self { inner: Sha3State::new() }
+                Self { inner: state_c::Sha3State::new() }
             }
 
             #[inline]
@@ -174,12 +176,12 @@ trait CoreTrait {
 }
 
 // Paddings
-// const KECCAK: u8 = 0x01;
+const KECCAK: u8 = 0x01;
 const SHA3: u8 = 0x06;
 // const SHAKE: u8 = 0x1f;
 // const CSHAKE: u8 = 0x4;
 
-// impl_sha3!(Keccak256, 256, KECCAK);
+impl_sha3!(Keccak256, 256, KECCAK);
 impl_sha3!(Sha3_256, 256, SHA3);
 
 /// Safe [`KeccakF1600`].
@@ -188,60 +190,37 @@ pub fn keccak_f1600(buf: &mut Buffer) {
     unsafe { KeccakF1600(buf) }
 }
 
-/// See [sha3_sponge].
-#[inline(always)]
-pub fn sha3_absorb(a: &mut Buffer, inp: &[u8], r: usize) -> usize {
-    unsafe { SHA3_absorb(a, inp.as_ptr(), inp.len(), r) }
-}
-
-/// See [sha3_sponge].
-#[inline(always)]
-pub fn sha3_squeeze(a: &mut Buffer, out: &mut [u8], r: usize) {
-    unsafe { SHA3_squeeze(a, out.as_mut_ptr(), out.len(), r) }
-}
-
-/// Post-padding one-shot implementations would look as following:
-///
-/// SHA3_224     SHA3_sponge(inp, len, out, 224/8, (1600-448)/8);
-/// SHA3_256     SHA3_sponge(inp, len, out, 256/8, (1600-512)/8);
-/// SHA3_384     SHA3_sponge(inp, len, out, 384/8, (1600-768)/8);
-/// SHA3_512     SHA3_sponge(inp, len, out, 512/8, (1600-1024)/8);
-/// SHAKE_128    SHA3_sponge(inp, len, out, d, (1600-256)/8);
-/// SHAKE_256    SHA3_sponge(inp, len, out, d, (1600-512)/8);
-#[inline(always)]
-pub fn sha3_sponge(inp: &[u8], out: &mut [u8], r: usize) {
-    let mut a = [[0u64; 5]; 5];
-    unsafe {
-        SHA3_absorb(&mut a, inp.as_ptr(), inp.len(), r);
-        SHA3_squeeze(&mut a, out.as_mut_ptr(), out.len(), r);
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use sha3::Digest;
 
+    const TESTS: &[&str] = &["", "a", "ab", "hello world"];
+
     #[test]
-    #[ignore = "TODO"]
     fn sha3_256() {
-        let tests: &[&str] = &["", "a", "ab", "hello world"];
-        for &test in tests {
+        for &test in TESTS {
             assert_eq!(
-                super::Sha3_256::digest(test.as_bytes())[..],
-                // sha3::Keccak256::digest(test.as_bytes())[..],
-                sha3::Sha3_256::digest(test.as_bytes())[..],
-                "{test:?}"
-            )
+                hex::encode(super::Sha3_256::digest(test.as_bytes())),
+                hex::encode(sha3::Sha3_256::digest(test.as_bytes())),
+                "{test:?}",
+            );
         }
     }
 
     #[test]
-    // #[ignore = "TODO"]
+    fn keccak256() {
+        for &test in TESTS {
+            assert_eq!(
+                hex::encode(super::Keccak256::digest(test.as_bytes())),
+                hex::encode(sha3::Keccak256::digest(test.as_bytes())),
+                "{test:?}",
+            );
+        }
+    }
+
+    #[test]
     fn keccakf1600() {
-        let mut buffer = [[1, 2, 3, 4, 5]; 5];
-        // unsafe {
-        //     super::memset(buffer.as_mut_ptr().cast(), 0x69, core::mem::size_of_val(&buffer));
-        // }
+        let mut buffer = [69; 200];
         let cpy = buffer;
         super::keccak_f1600(&mut buffer);
         assert_ne!(buffer, cpy);
