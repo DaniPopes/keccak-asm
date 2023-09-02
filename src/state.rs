@@ -1,6 +1,6 @@
-use crate::{Buffer, SHA3_absorb, SHA3_squeeze};
 use core::mem::MaybeUninit;
 use core::ptr;
+use sha3_asm::{Buffer, SHA3_absorb, SHA3_squeeze};
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
 

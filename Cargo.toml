@@ -4,15 +4,13 @@ version = "0.1.0"
 edition = "2021"
 exclude = [".gitmodules", "cryptogams", "tests"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[workspace]
+members = [".", "sha3-asm"]
 
 [dependencies]
-cfg-if = "1.0"
 digest = { version = "0.10", default-features = false }
+sha3-asm = { version = "0.1.0", path = "sha3-asm" }
 zeroize = { version = "1.6.0", default-features = false, optional = true }
-
-[build-dependencies]
-cc = "1.0.83"
 
 [dev-dependencies]
 digest = { version = "0.10", features = ["dev"] }

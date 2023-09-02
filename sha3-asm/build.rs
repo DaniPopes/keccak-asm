@@ -21,18 +21,19 @@ const FILES: &[(&str, &str)] = &[
 const HEADERS: &[&str] = &["cryptogams/arm/arm_arch.h"];
 
 fn main() {
-    // run Perl scripts
     if Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/cryptogams")).exists() {
+        // run Perl scripts
         for &(script, output) in FILES {
             rerun_if_changed(script);
             perl(script, output);
         }
-    }
 
-    for &path in HEADERS {
-        rerun_if_changed(path);
-        let f = Path::new(path).file_name().unwrap().to_str().unwrap();
-        fs::copy(path, format!("include/{f}")).unwrap();
+        // update headers
+        for &path in HEADERS {
+            rerun_if_changed(path);
+            let f = Path::new(path).file_name().unwrap().to_str().unwrap();
+            fs::copy(path, format!("include/{f}")).unwrap();
+        }
     }
 
     let target_arch = env("CARGO_CFG_TARGET_ARCH");
