@@ -7,15 +7,15 @@ use std::{env, fs};
 // (script, outfile)
 const FILES: &[(&str, &str)] = &[
     // arm
-    ("cryptogams/arm/keccak1600-armv4.pl", "src/keccak1600-armv4.S"),
-    ("cryptogams/arm/keccak1600-armv8.pl", "src/keccak1600-armv8.S"),
+    ("cryptogams/arm/keccak1600-armv4.pl", "src/keccak1600-armv4.s"),
+    ("cryptogams/arm/keccak1600-armv8.pl", "src/keccak1600-armv8.s"),
     // x86
-    ("cryptogams/x86/keccak1600-mmx.pl", "src/keccak1600-x86.S"),
+    ("cryptogams/x86/keccak1600-mmx.pl", "src/keccak1600-x86.s"),
     // x86_64
-    ("cryptogams/x86_64/keccak1600-avx2.pl", "src/keccak1600-x86_64-avx2.S"),
-    ("cryptogams/x86_64/keccak1600-avx512.pl", "src/keccak1600-x86_64-avx512f.S"),
-    ("cryptogams/x86_64/keccak1600-avx512vl.pl", "src/keccak1600-x86_64-avx512vl.S"),
-    ("cryptogams/x86_64/keccak1600-x86_64.pl", "src/keccak1600-x86_64.S"),
+    ("cryptogams/x86_64/keccak1600-avx2.pl", "src/keccak1600-x86_64-avx2.s"),
+    ("cryptogams/x86_64/keccak1600-avx512.pl", "src/keccak1600-x86_64-avx512f.s"),
+    ("cryptogams/x86_64/keccak1600-avx512vl.pl", "src/keccak1600-x86_64-avx512vl.s"),
+    ("cryptogams/x86_64/keccak1600-x86_64.pl", "src/keccak1600-x86_64.s"),
 ];
 
 const HEADERS: &[&str] = &["cryptogams/arm/arm_arch.h"];
@@ -44,27 +44,27 @@ fn main() {
     let mut cc = cc::Build::new();
     cc.include("include");
     let output = match target_arch.as_str() {
-        "x86" => "src/keccak1600-x86.S",
+        "x86" => "src/keccak1600-x86.s",
         "x86_64" => {
             if feature("avx512vl") {
                 cc.flag("-mavx512vl");
-                "src/keccak1600-x86_64-avx512vl.S"
+                "src/keccak1600-x86_64-avx512vl.s"
             } else if feature("avx512f") {
                 cc.flag("-mavx512f");
-                "src/keccak1600-x86_64-avx512f.S"
+                "src/keccak1600-x86_64-avx512f.s"
             } else if feature("avx2") {
                 cc.flag("-mavx2");
-                "src/keccak1600-x86_64-avx2.S"
+                "src/keccak1600-x86_64-avx2.s"
             } else {
-                "src/keccak1600-x86_64.S"
+                "src/keccak1600-x86_64.s"
             }
         }
         // TODO
         "aarch64" => {
             if target_features.iter().any(|&f| f.contains("v8")) {
-                "src/keccak1600-armv8.S"
+                "src/keccak1600-armv8.s"
             } else {
-                "src/keccak1600-armv4.S"
+                "src/keccak1600-armv4.s"
             }
         }
         s => panic!("Unsupported target arch: {s}"),
