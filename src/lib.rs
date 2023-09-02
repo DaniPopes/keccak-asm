@@ -37,15 +37,3 @@ impl_sha3!(Sha3_224, U28, U144, SHA3, "SHA-3-224", "2.16.840.1.101.3.4.2.7");
 impl_sha3!(Sha3_256, U32, U136, SHA3, "SHA-3-256", "2.16.840.1.101.3.4.2.8");
 impl_sha3!(Sha3_384, U48, U104, SHA3, "SHA-3-384", "2.16.840.1.101.3.4.2.9");
 impl_sha3!(Sha3_512, U64, U72, SHA3, "SHA-3-512", "2.16.840.1.101.3.4.2.10");
-
-#[cfg(test)]
-#[cfg(TODO)]
-mod tests {
-    #[test]
-    fn keccakf1600() {
-        let mut buffer = [69; 200];
-        let cpy = buffer;
-        super::keccak_f1600(&mut buffer);
-        assert_ne!(buffer, cpy);
-    }
-}

@@ -15,16 +15,16 @@
 #[cfg(not(any(target_arch = "x86_64", target_arch = "x86", target_arch = "aarch64")))]
 compile_error!("crate can only be used on x86, x86-64 and aarch64 architectures");
 
-/// SHA3 state buffer.
+/// SHA-3 state buffer.
 pub type Buffer = [u64; 25];
 
 // Derived from OpenSSL:
 // https://github.com/openssl/openssl/blob/60421893a286bb9eb7fb7c2454b84af9778ffca4/crypto/sha/keccak1600.c#L14-L17
 #[link(name = "keccak1600", kind = "static")]
 extern "C" {
-    /// SHA3 absorb, defined in assembly.
+    /// SHA-3 absorb, defined in assembly.
     ///
-    /// `r` is the buffer size in bytes. This is `(1600 - bitlen * 2) / 8` for SHA3.
+    /// `r` is the rate (block size) of the function in bytes.
     ///
     /// C signature:
     ///
@@ -34,9 +34,9 @@ extern "C" {
     /// ```
     pub fn SHA3_absorb(a: *mut Buffer, inp: *const u8, len: usize, r: usize) -> usize;
 
-    /// SHA3 squeeze, defined in assembly.
+    /// SHA-3 squeeze, defined in assembly.
     ///
-    /// `r` is the buffer size in bytes. This is `(1600 - bitlen * 2) / 8` for SHA3.
+    /// `r` is the rate (block size) of the function in bytes.
     ///
     /// C signature:
     ///
