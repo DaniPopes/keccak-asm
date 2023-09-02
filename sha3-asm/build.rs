@@ -70,13 +70,10 @@ fn main() {
         "x86" => "src/SHA3/x86.s",
         "x86_64" => {
             if feature("avx512vl") {
-                cc.flag("-mavx512vl");
                 "src/SHA3/x86_64-avx512vl.s"
             } else if feature("avx512f") {
-                cc.flag("-mavx512f");
                 "src/SHA3/x86_64-avx512f.s"
             } else if feature("avx2") {
-                cc.flag("-mavx2");
                 "src/SHA3/x86_64-avx2.s"
             } else {
                 "src/SHA3/x86_64.s"
@@ -96,7 +93,6 @@ fn main() {
     let keccak1600p = match target_arch.as_str() {
         "x86_64" => {
             if feature("avx512vl") && feature("avx512f") {
-                cc.flag("-mavx512vl").flag("-mavx512f");
                 Some("src/KeccakP-1600/x86_64-avx512.s")
             } else if feature("avx2") {
                 Some("src/KeccakP-1600/x86_64-avx2.s")
