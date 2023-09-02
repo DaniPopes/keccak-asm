@@ -2,7 +2,7 @@
 name = "sha3-asm"
 version = "0.1.0"
 edition = "2021"
-exclude = ["cryptogams", "tests"]
+exclude = ["cryptogams", "XKCP"]
 
 [dependencies]
 cfg-if = "1.0"

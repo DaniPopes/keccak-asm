@@ -1,3 +1,6 @@
 [submodule "sha3-asm/cryptogams"]
 	path = sha3-asm/cryptogams
 	url = https://github.com/dot-asm/cryptogams
+[submodule "sha3-asm/XKCP"]
+	path = sha3-asm/XKCP
+	url = https://github.com/XKCP/XKCP.git

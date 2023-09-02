@@ -2,6 +2,7 @@
 
 #![no_std]
 #![warn(missing_docs, rust_2018_idioms)]
+#![feature(offset_of)]
 
 pub use digest::{self, Digest};
 

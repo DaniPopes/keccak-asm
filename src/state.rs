@@ -8,6 +8,7 @@ const MAX_BUFSZ: usize = (1600 / 8) - 32;
 
 #[derive(Clone)]
 #[allow(non_snake_case)]
+#[repr(align(64))]
 pub(crate) struct Sha3State<const BITS: usize, const PAD: u8> {
     A: Buffer,
 
