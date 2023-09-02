@@ -1,31 +1,67 @@
-#![allow(non_snake_case, non_upper_case_globals)]
+use crate::{Buffer, SHA3_absorb, SHA3_squeeze};
+use core::mem::MaybeUninit;
+use core::ptr;
+#[cfg(feature = "zeroize")]
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
-use crate::{Buffer, CoreTrait, SHA3_absorb, SHA3_squeeze};
-use core::{mem, ptr};
+const MAX_BUFSZ: usize = (1600 / 8) - 32;
 
-pub(crate) struct Sha3State<const bitlen: usize, const pad: u8> {
+#[derive(Clone)]
+#[allow(non_snake_case)]
+pub(crate) struct Sha3State<const BITS: usize, const PAD: u8> {
     A: Buffer,
+
     /// Used bytes in below buffer.
     bufsz: usize,
-    buf: [u8; (1600 / 8) - 32],
+    buf: [MaybeUninit<u8>; MAX_BUFSZ],
 }
 
-impl<const bitlen: usize, const pad: u8> CoreTrait for Sha3State<bitlen, pad> {
+impl<const BITS: usize, const PAD: u8> Default for Sha3State<BITS, PAD> {
     #[inline(always)]
-    fn new() -> Self {
-        unsafe { mem::zeroed() }
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(feature = "zeroize")]
+impl<const BITS: usize, const PAD: u8> Drop for Sha3State<BITS, PAD> {
+    fn drop(&mut self) {
+        self.A.zeroize();
+        self.buf.zeroize();
+    }
+}
+
+#[cfg(feature = "zeroize")]
+impl<const BITS: usize, const PAD: u8> ZeroizeOnDrop for Sha3State<BITS, PAD> {}
+
+impl<const BITS: usize, const PAD: u8> Sha3State<BITS, PAD> {
+    const OUT_SIZE: usize = BITS / 8;
+    const BLOCK_SIZE: usize = (1600 - BITS * 2) / 8;
+
+    #[inline(always)]
+    pub(crate) fn new() -> Self {
+        Self {
+            A: [0; 25],
+            bufsz: 0,
+            // TODO: MaybeUninit::uninit_array()
+            buf: unsafe { MaybeUninit::uninit().assume_init() },
+        }
     }
 
     #[inline(always)]
-    fn reset(&mut self) {
-        self.A = unsafe { mem::zeroed() };
+    pub(crate) fn reset(&mut self) {
+        self.A = [0; 25];
         self.bufsz = 0;
     }
 
-    // https://github.com/openssl/openssl/blob/9ff816106c2b2ccbffe5c4e3619a840547088674/providers/implementations/digests/sha3_prov.c#L68
-    #[inline(always)]
-    unsafe fn update(&mut self, mut inp: *const u8, mut len: usize) {
-        let bsz: usize = Self::bsz;
+    /// Implementation from [OpenSSL](https://github.com/openssl/openssl/blob/9ff816106c2b2ccbffe5c4e3619a840547088674/providers/implementations/digests/sha3_prov.c#L68).
+    ///
+    /// # Safety
+    ///
+    /// `inp` must point to at least `len` bytes.
+    #[inline]
+    pub(crate) unsafe fn update(&mut self, mut inp: *const u8, mut len: usize) {
+        let bsz: usize = Self::BLOCK_SIZE;
 
         if len == 0 {
             return
@@ -33,64 +69,59 @@ impl<const bitlen: usize, const pad: u8> CoreTrait for Sha3State<bitlen, pad> {
 
         let num = self.bufsz;
         let mut rem;
-        /* Is there anything in the buffer already ? */
+        // Is there anything in the buffer already?
         if num != 0 {
-            /* Calculate how much space is left in the buffer */
+            // Calculate how much space is left in the buffer
             rem = bsz - num;
-            /* If the new input does not fill the buffer then just add it */
+            // If the new input does not fill the buffer then just add it
             if len < rem {
                 memcpy(self.buf().add(num), inp, len);
                 self.bufsz += len;
                 return
             }
-            /* otherwise fill up the buffer and absorb the buffer */
+            // otherwise fill up the buffer and absorb the buffer
             memcpy(self.buf().add(num), inp, rem);
-            /* Update the input pointer */
+            // Update the input pointer
             inp = inp.add(rem);
             len -= rem;
-            SHA3_absorb(&mut self.A, self.buf.as_ptr(), bsz, bsz);
+            SHA3_absorb(&mut self.A, self.buf(), bsz, bsz);
             self.bufsz = 0;
         }
-        /* Absorb the input - rem = leftover part of the input < blocksize) */
+        // Absorb the input - rem = leftover part of the input < blocksize)
         rem = SHA3_absorb(&mut self.A, inp, len, bsz);
-        /* Copy the leftover bit of the input into the buffer */
+        // Copy the leftover bit of the input into the buffer
         if rem > 0 {
-            unsafe {
-                memcpy(self.buf(), inp.add(len).sub(rem), rem);
-            }
+            memcpy(self.buf(), inp.add(len).sub(rem), rem);
             self.bufsz = rem;
         }
     }
 
-    // https://github.com/openssl/openssl/blob/60421893a286bb9eb7fb7c2454b84af9778ffca4/crypto/sha/sha3.c#L87
-    #[inline(always)]
-    unsafe fn finalize(&mut self, out: *mut u8) {
-        let bsz: usize = Self::bsz;
+    /// Implementation from [OpenSSL](https://github.com/openssl/openssl/blob/60421893a286bb9eb7fb7c2454b84af9778ffca4/crypto/sha/sha3.c#L87).
+    ///
+    /// # Safety
+    ///
+    /// `out` must point to at least `BITS / 8` bytes.
+    #[inline]
+    pub(crate) unsafe fn finalize(&mut self, out: *mut u8) {
+        let bsz: usize = Self::BLOCK_SIZE;
 
         let num = self.bufsz;
 
-        /*
-         * Pad the data with 10*1. Note that |num| can be |bsz - 1|
-         * in which case both byte operations below are performed on
-         * same byte...
-         */
+        // Pad the data with 10*1. Note that |num| can be |bsz - 1|
+        // in which case both byte operations below are performed on
+        // same byte...
         memset(self.buf().add(num), 0, bsz - num);
-        *self.buf().add(num) = pad;
+        *self.buf().add(num) = PAD;
         *self.buf().add(bsz - 1) |= 0x80;
 
         SHA3_absorb(&mut self.A, self.buf(), bsz, bsz);
 
-        SHA3_squeeze(&mut self.A, out, Self::out, bsz);
+        SHA3_squeeze(&mut self.A, out, Self::OUT_SIZE, bsz);
     }
-}
-
-impl<const bitlen: usize, const pad: u8> Sha3State<bitlen, pad> {
-    const out: usize = bitlen / 8;
-    const bsz: usize = (1600 - bitlen * 2) / 8;
 
     #[inline(always)]
     fn buf(&mut self) -> *mut u8 {
-        self.buf.as_mut_ptr()
+        self.buf.as_mut_ptr().cast()
     }
 }
 

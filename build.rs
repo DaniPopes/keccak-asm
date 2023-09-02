@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 
-use std::{env, fs, path::Path, process::Command};
+use std::path::Path;
+use std::process::Command;
+use std::{env, fs};
 
 // (script, outfile)
 const FILES: &[(&str, &str)] = &[

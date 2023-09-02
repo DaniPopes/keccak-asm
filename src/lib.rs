@@ -1,22 +1,55 @@
+//! TODO
+
 #![no_std]
+#![warn(missing_docs, rust_2018_idioms)]
 
 #[cfg(not(any(target_arch = "x86_64", target_arch = "x86", target_arch = "aarch64")))]
 compile_error!("crate can only be used on x86, x86-64 and aarch64 architectures");
 
-use core::fmt;
+pub use digest::{self, Digest};
 
+use core::fmt;
+use digest::block_buffer::Eager;
+#[cfg(feature = "oid")]
+use digest::const_oid::{AssociatedOid, ObjectIdentifier};
+use digest::consts::{U104, U136, U144, U200, U28, U32, U48, U64, U72};
+use digest::core_api::{AlgorithmName, BlockSizeUser, BufferKindUser};
+use digest::typenum::Unsigned;
+use digest::{FixedOutput, FixedOutputReset, HashMarker, Output, OutputSizeUser, Reset, Update};
+
+#[macro_use]
+mod macros;
 mod state;
 use state::Sha3State;
 
-type Buffer = [u8; 200];
+/// Sha3 state buffer.
+pub type Buffer = [u64; 25];
 
+// Derived from OpenSSL:
 // https://github.com/openssl/openssl/blob/60421893a286bb9eb7fb7c2454b84af9778ffca4/crypto/sha/keccak1600.c#L14-L17
-// size_t SHA3_absorb(uint64_t A[5][5], const unsigned char *inp, size_t len,
-//     size_t r);
-// void SHA3_squeeze(uint64_t A[5][5], unsigned char *out, size_t len, size_t r);
 #[link(name = "keccak1600", kind = "static")]
 extern "C" {
+    /// Sha3 absorb, defined in assembly.
+    ///
+    /// `r` is the buffer size in bytes. This is `(1600 - bitlen * 2) / 8`.
+    ///
+    /// C signature:
+    ///
+    /// ```c
+    /// size_t SHA3_absorb(uint64_t A[5][5], const unsigned char *inp, size_t len,
+    ///                    size_t r);
+    /// ```
     pub fn SHA3_absorb(a: *mut Buffer, inp: *const u8, len: usize, r: usize) -> usize;
+
+    /// Sha3 squeeze, defined in assembly.
+    ///
+    /// `r` is the buffer size in bytes. This is `(1600 - bitlen * 2) / 8`.
+    ///
+    /// C signature:
+    ///
+    /// ```c
+    /// void SHA3_squeeze(uint64_t A[5][5], unsigned char *out, size_t len, size_t r);
+    /// ```
     pub fn SHA3_squeeze(a: *mut Buffer, out: *mut u8, len: usize, r: usize);
 }
 
@@ -99,85 +132,23 @@ cfg_if::cfg_if! {
     }
 }
 
-/// Safe [`KeccakF1600`].
+/// Safe wrapper for [`SHA3_absorb`]. See its docs for more.
+#[inline(always)]
+pub fn sha3_absorb(a: &mut Buffer, inp: &[u8], r: usize) -> usize {
+    unsafe { SHA3_absorb(a, inp.as_ptr(), inp.len(), r) }
+}
+
+/// Safe wrapper for [`SHA3_squeeze`]. See its docs for more.
+#[inline(always)]
+pub fn sha3_squeeze(a: &mut Buffer, out: &mut [u8], r: usize) {
+    unsafe { SHA3_squeeze(a, out.as_mut_ptr(), out.len(), r) }
+}
+
+/// Safe wrapper for [`KeccakF1600`]. See its docs for more.
 #[inline(always)]
 #[cfg(TODO)]
 pub fn keccak_f1600(buf: &mut Buffer) {
     unsafe { KeccakF1600(buf) }
-}
-
-macro_rules! impl_sha3 {
-    ($name:ident, $bits:literal, $pad:expr) => {
-        #[allow(non_snake_case)]
-        pub struct $name {
-            inner: Sha3State<$bits, $pad>,
-        }
-
-        impl fmt::Debug for $name {
-            #[inline]
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                f.write_str(concat!(stringify!($name), " { ... }"))
-            }
-        }
-
-        impl $name {
-            /// Output length.
-            pub const OUT: usize = $bits / 8;
-            /// Block size.
-            pub const BSZ: usize = (1600 - $bits * 2) / 8;
-            /// Padding byte.
-            pub const PAD: u8 = $pad;
-
-            #[inline]
-            pub fn new() -> Self {
-                Self { inner: Sha3State::new() }
-            }
-
-            #[inline]
-            pub fn reset(&mut self) {
-                self.inner.reset();
-            }
-
-            // https://github.com/openssl/openssl/blob/60421893a286bb9eb7fb7c2454b84af9778ffca4/crypto/sha/sha3.c#L45
-            #[inline]
-            pub fn update(&mut self, inp: &[u8]) {
-                unsafe { self.inner.update(inp.as_ptr(), inp.len()) }
-            }
-
-            #[inline]
-            pub fn finalize(self) -> [u8; Self::OUT] {
-                let mut out = [0; Self::OUT];
-                self.finalize_into(&mut out);
-                out
-            }
-
-            #[inline]
-            pub fn finalize_into(mut self, out: &mut [u8; Self::OUT]) {
-                unsafe { self.inner.finalize(out.as_mut_ptr()) };
-            }
-
-            #[inline]
-            pub fn digest(inp: &[u8]) -> [u8; Self::OUT] {
-                let mut out = [0; Self::OUT];
-                Self::digest_into(inp, &mut out);
-                out
-            }
-
-            #[inline]
-            pub fn digest_into(inp: &[u8], out: &mut [u8; Self::OUT]) {
-                let mut this = Self::new();
-                this.update(inp);
-                this.finalize_into(out);
-            }
-        }
-    };
-}
-
-trait CoreTrait {
-    fn new() -> Self;
-    fn reset(&mut self);
-    unsafe fn update(&mut self, inp: *const u8, len: usize);
-    unsafe fn finalize(&mut self, out: *mut u8);
 }
 
 // Paddings
@@ -186,39 +157,22 @@ const SHA3: u8 = 0x06;
 // const SHAKE: u8 = 0x1f;
 // const CSHAKE: u8 = 0x4;
 
-impl_sha3!(Keccak256, 256, KECCAK);
-impl_sha3!(Sha3_256, 256, SHA3);
+impl_sha3!(Keccak224, U28, U144, KECCAK, "Keccak-224");
+impl_sha3!(Keccak256, U32, U136, KECCAK, "Keccak-256");
+impl_sha3!(Keccak384, U48, U104, KECCAK, "Keccak-384");
+impl_sha3!(Keccak512, U64, U72, KECCAK, "Keccak-512");
+
+impl_sha3!(Keccak256Full, U200, U136, KECCAK, "SHA-3 CryptoNight variant");
+
+impl_sha3!(Sha3_224, U28, U144, SHA3, "SHA-3-224", "2.16.840.1.101.3.4.2.7");
+impl_sha3!(Sha3_256, U32, U136, SHA3, "SHA-3-256", "2.16.840.1.101.3.4.2.8");
+impl_sha3!(Sha3_384, U48, U104, SHA3, "SHA-3-384", "2.16.840.1.101.3.4.2.9");
+impl_sha3!(Sha3_512, U64, U72, SHA3, "SHA-3-512", "2.16.840.1.101.3.4.2.10");
 
 #[cfg(test)]
+#[cfg(TODO)]
 mod tests {
-    use sha3::Digest;
-
-    const TESTS: &[&str] = &["", "a", "ab", "hello world"];
-
     #[test]
-    fn sha3_256() {
-        for &test in TESTS {
-            assert_eq!(
-                hex::encode(super::Sha3_256::digest(test.as_bytes())),
-                hex::encode(sha3::Sha3_256::digest(test.as_bytes())),
-                "{test:?}",
-            );
-        }
-    }
-
-    #[test]
-    fn keccak256() {
-        for &test in TESTS {
-            assert_eq!(
-                hex::encode(super::Keccak256::digest(test.as_bytes())),
-                hex::encode(sha3::Keccak256::digest(test.as_bytes())),
-                "{test:?}",
-            );
-        }
-    }
-
-    #[test]
-    #[cfg(TODO)]
     fn keccakf1600() {
         let mut buffer = [69; 200];
         let cpy = buffer;
