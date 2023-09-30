@@ -2,7 +2,7 @@
 name = "keccak-asm"
 version = "0.1.0"
 edition = "2021"
-exclude = [".gitmodules", "cryptogams", "tests"]
+exclude = [".gitmodules", "tests"]
 
 [workspace]
 members = [".", "sha3-asm"]
