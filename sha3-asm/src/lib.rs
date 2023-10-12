@@ -58,3 +58,6 @@ pub fn sha3_absorb(a: &mut Buffer, inp: &[u8], r: usize) -> usize {
 pub fn sha3_squeeze(a: &mut Buffer, out: &mut [u8], r: usize) {
     unsafe { SHA3_squeeze(a, out.as_mut_ptr(), out.len(), r) }
 }
+
+#[doc(hidden)]
+pub const IMPL: &str = env!("SHA3_ASM_SRC");

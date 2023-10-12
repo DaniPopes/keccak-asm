@@ -36,6 +36,7 @@ fn main() {
     };
     let src = Path::new(script).file_stem().unwrap().to_str().unwrap();
     let sha3 = Path::new(&env("OUT_DIR")).join(format!("{src}.s"));
+    println!("cargo:rustc-env=SHA3_ASM_SRC={src}");
 
     // perl scripts args
     let os = env("CARGO_CFG_TARGET_OS");
