@@ -2,33 +2,9 @@ use std::path::Path;
 use std::process::Command;
 use std::{env, fs};
 
-const CRYPTOGAMS_HEADERS: &[&str] = &["cryptogams/arm/arm_arch.h"];
-
-// (asm, outfile)
-const XKCP_FILES: &[(&str, &str)] = &[
-    ("XKCP/lib/low/KeccakP-1600/AVX2/KeccakP-1600-AVX2.s", "src/KeccakP-1600/x86_64-avx2.s"),
-    ("XKCP/lib/low/KeccakP-1600/AVX512/KeccakP-1600-AVX512.s", "src/KeccakP-1600/x86_64-avx512.s"),
-];
-
-const XKCP_HEADERS: &[&str] = &[
-    // optimized
-    "XKCP/lib/common/brg_endian.h",
-    // // avx2
-    // "XKCP/lib/low/KeccakP-1600/AVX2/KeccakP-1600-SnP.h",
-    // // avx512
-    // "XKCP/lib/low/KeccakP-1600/AVX512/KeccakP-1600-SnP.h",
-];
+const INCLUDES: &[&str] = &["cryptogams/arm"];
 
 fn main() {
-    CRYPTOGAMS_HEADERS.iter().copied().for_each(include);
-    if Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/XKCP")).exists() {
-        for &(path, output) in XKCP_FILES {
-            rerun_if_changed(path);
-            fs::copy(path, output).unwrap();
-        }
-        XKCP_HEADERS.iter().copied().for_each(include);
-    }
-
     let target_arch = env("CARGO_CFG_TARGET_ARCH");
     let target_features = env("CARGO_CFG_TARGET_FEATURE");
     let target_features = target_features.split(',').collect::<Vec<_>>();
@@ -93,30 +69,7 @@ fn main() {
 
     perl(script, flavor.as_deref(), sha3.to_str().unwrap());
 
-    let keccakp1600 = match target_arch.as_str() {
-        "x86_64" => {
-            if feature("avx512vl") && feature("avx512f") {
-                Some("src/KeccakP-1600/x86_64-avx512.s")
-            } else if feature("avx2") {
-                Some("src/KeccakP-1600/x86_64-avx2.s")
-            } else {
-                // Note: plain x86_64 impl is obsolete
-                None
-            }
-        }
-        // TODO: arm
-        _ => None,
-    };
-
-    let mut cc = cc::Build::new();
-    cc.include("include");
-
-    if let Some(keccakp1600) = keccakp1600 {
-        println!("cargo:rustc-cfg=keccakp1600");
-        cc.file(keccakp1600);
-    }
-
-    cc.file(sha3).compile("keccak");
+    cc::Build::new().includes(INCLUDES).file(sha3).compile("keccak");
 }
 
 fn perl(path: &str, flavor: Option<&str>, to: &str) {
@@ -134,16 +87,6 @@ fn perl(path: &str, flavor: Option<&str>, to: &str) {
     if !stdout.trim().is_empty() {
         fs::write(to, stdout).unwrap();
     }
-}
-
-fn include(path: &str) {
-    rerun_if_changed(path);
-    let f = Path::new(path).file_name().unwrap().to_str().unwrap();
-    fs::copy(path, format!("include/{f}")).unwrap();
-}
-
-fn rerun_if_changed(path: &str) {
-    println!("cargo:rerun-if-changed={path}");
 }
 
 fn env(s: &str) -> String {

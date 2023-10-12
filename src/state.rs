@@ -12,7 +12,6 @@ const MAX_BUFSZ: usize = (1600 / 8) - 32;
 // Note: here block_size, md_size (output size), pad are all compile-time constants,
 // while the OpenSSL implementation uses runtime variables stored in this struct
 #[derive(Clone)]
-#[repr(C, align(64))]
 #[allow(non_snake_case)]
 pub(crate) struct Sha3State<const BITS: usize, const PAD: u8> {
     /// Core state buffer.
