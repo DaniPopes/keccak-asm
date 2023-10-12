@@ -9,8 +9,8 @@ members = [".", "sha3-asm"]
 
 [dependencies]
 digest = "0.10"
-sha3-asm = { version = "0.1.0", path = "sha3-asm" }
 zeroize = { version = "1.6.0", default-features = false, optional = true }
+xkcp-rs = { path = "../xkcp-rs/crates/xkcp-rs" }
 
 [dev-dependencies]
 digest = { version = "0.10", features = ["dev"] }
