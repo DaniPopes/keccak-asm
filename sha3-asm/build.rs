@@ -48,17 +48,20 @@ fn main() {
             }
         }
         "aarch64" => {
+            // TODO: I don't think this is right
             if feature("sha3") || feature("crypto") {
-                "cryptogams/arm/keccak1600-armv4.pl"
-            } else {
                 "cryptogams/arm/keccak1600-armv8.pl"
+            } else {
+                "cryptogams/arm/keccak1600-armv4.pl"
             }
         }
+        // TODO: ia64, mips, ppc, riscv, s390x in cryptogams/ all have keccak1600
         s => panic!("Unsupported target arch: {s}"),
     };
     let src = Path::new(script).file_stem().unwrap().to_str().unwrap();
     let sha3 = Path::new(&env("OUT_DIR")).join(format!("{src}.s"));
 
+    // perl scripts args
     let os = env("CARGO_CFG_TARGET_OS");
     let environ = env("CARGO_CFG_TARGET_ENV");
     let family = env("CARGO_CFG_TARGET_FAMILY");

@@ -6,14 +6,20 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 const MAX_BUFSZ: usize = (1600 / 8) - 32;
 
+/// Core SHA-3 state.
+///
+/// Implementation from [OpenSSL](https://github.com/openssl/openssl/blob/eaee1765a49c6a8ba728e3e2d18bb67bff8aaa55/include/internal/sha3.h#L34).
+// Note: here block_size, md_size (output size), pad are all compile-time constants,
+// while the OpenSSL implementation uses runtime variables stored in this struct
 #[derive(Clone)]
+#[repr(C, align(64))]
 #[allow(non_snake_case)]
-#[repr(align(64))]
 pub(crate) struct Sha3State<const BITS: usize, const PAD: u8> {
+    /// Core state buffer.
     A: Buffer,
-
-    /// Used bytes in below buffer.
+    /// Used bytes in the temporary buffer.
     bufsz: usize,
+    /// Temporary buffer.
     buf: [MaybeUninit<u8>; MAX_BUFSZ],
 }
 
@@ -44,7 +50,7 @@ impl<const BITS: usize, const PAD: u8> Sha3State<BITS, PAD> {
         Self {
             A: [0; 25],
             bufsz: 0,
-            // TODO: MaybeUninit::uninit_array()
+            // TODO: MaybeUninit::uninit_array() is safe but unstable
             buf: unsafe { MaybeUninit::uninit().assume_init() },
         }
     }
