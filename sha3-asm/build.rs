@@ -23,14 +23,7 @@ fn main() {
                 "cryptogams/x86_64/keccak1600-x86_64.pl"
             }
         }
-        "aarch64" => {
-            // TODO: I don't think this is right
-            if feature("sha3") || feature("crypto") {
-                "cryptogams/arm/keccak1600-armv8.pl"
-            } else {
-                "cryptogams/arm/keccak1600-armv4.pl"
-            }
-        }
+        "aarch64" => "cryptogams/arm/keccak1600-armv8.pl",
         // TODO: ia64, mips, ppc, riscv, s390x in cryptogams/ all have keccak1600
         s => panic!("Unsupported target arch: {s}"),
     };
@@ -44,7 +37,7 @@ fn main() {
     let family = env("CARGO_CFG_TARGET_FAMILY");
     let mut flavor = match target_arch.as_str() {
         "aarch64" => match os.as_str() {
-            "ios" => Some("ios64"),
+            "ios" | "macos" => Some("ios64"),
             "windows" => Some("win64"),
             "linux" => Some("linux64"),
             _ => None,
