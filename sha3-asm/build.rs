@@ -14,7 +14,7 @@ fn main() {
     let sha3 = Path::new(&env("OUT_DIR")).join(format!("{src}.s"));
     println!("cargo:rustc-env=SHA3_ASM_SRC={src}");
 
-    let flavor = cryptogams_script_flavor(script, feature);
+    let flavor = cryptogams_script_flavor(feature);
     perl(script, flavor.as_deref(), sha3.to_str().unwrap());
 
     cc::Build::new().includes(INCLUDES).file(sha3).compile("keccak");
@@ -29,6 +29,7 @@ fn cryptogams_script(feature: impl Fn(&str) -> bool) -> &'static str {
 
     let target_arch = env("CARGO_CFG_TARGET_ARCH");
     match target_arch.as_str() {
+        "aarch64" => "cryptogams/arm/keccak1600-armv8.pl",
         "x86" => "cryptogams/x86/keccak1600-mmx.pl",
         "x86_64" => {
             if feature("avx512vl") {
@@ -41,13 +42,18 @@ fn cryptogams_script(feature: impl Fn(&str) -> bool) -> &'static str {
                 "cryptogams/x86_64/keccak1600-x86_64.pl"
             }
         }
-        "aarch64" => "cryptogams/arm/keccak1600-armv8.pl",
-        // TODO: ia64, mips, ppc, riscv, s390x in cryptogams/ all have keccak1600
+        // TODO: armv4
+        // TODO: cil (?)
+        // TODO: ia64 (?)
+        s if s.starts_with("mips") => "cryptogams/mips/keccak1600-mips.pl",
+        s if s.starts_with("powerpc") => "cryptogams/ppc/keccak1600-ppc.pl",
+        s if s.starts_with("riscv") => "cryptogams/riscv/keccak1600-riscv.pl",
+        "s390x" => "cryptogams/s390x/keccak1600-s390x.pl",
         s => panic!("Unsupported target arch: {s}"),
     }
 }
 
-fn cryptogams_script_flavor(_script: &str, feature: impl Fn(&str) -> bool) -> Option<String> {
+fn cryptogams_script_flavor(feature: impl Fn(&str) -> bool) -> Option<String> {
     let target_arch = env("CARGO_CFG_TARGET_ARCH");
     let os = env("CARGO_CFG_TARGET_OS");
     let environ = env("CARGO_CFG_TARGET_ENV");
@@ -69,6 +75,10 @@ fn cryptogams_script_flavor(_script: &str, feature: impl Fn(&str) -> bool) -> Op
             "windows" => Some("win32n"),
             _ => Some("elf"),
         },
+        s if s.starts_with("mips") && s.contains("64") => Some("64"),
+        s if s.starts_with("powerpc") && s.contains("64") => Some("64"),
+        s if s.starts_with("riscv") && s.contains("32") => Some("32"),
+        s if s.starts_with("riscv") && s.contains("64") => Some("64"),
         _ => None,
     }
     .map(String::from);

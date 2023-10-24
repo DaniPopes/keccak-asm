@@ -12,10 +12,6 @@
 #![no_std]
 #![warn(missing_docs, rust_2018_idioms)]
 
-// TODO: Update this when adding support for new architectures
-#[cfg(not(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64")))]
-compile_error!("crate can only be used on x86, x86-64 and aarch64 architectures");
-
 /// SHA-3 state buffer.
 pub type Buffer = [u64; 25];
 
