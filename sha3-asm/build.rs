@@ -29,7 +29,9 @@ fn cryptogams_script(feature: impl Fn(&str) -> bool) -> &'static str {
 
     let target_arch = env("CARGO_CFG_TARGET_ARCH");
     match target_arch.as_str() {
+        "arm" => "cryptogams/arm/keccak1600-armv4.pl",
         "aarch64" => "cryptogams/arm/keccak1600-armv8.pl",
+        "x86" => "cryptogams/x86/keccak1600-x86.pl",
         "x86_64" => {
             if feature("avx512vl") {
                 "cryptogams/x86_64/keccak1600-avx512vl.pl"
@@ -41,8 +43,6 @@ fn cryptogams_script(feature: impl Fn(&str) -> bool) -> &'static str {
                 "cryptogams/x86_64/keccak1600-x86_64.pl"
             }
         }
-        "i686" | "i586" | "i386" => "cryptogams/x86/keccak1600-x86.pl",
-        // TODO: armv4
         // TODO: cil (?)
         // TODO: ia64 (?)
         s if s.starts_with("mips") => "cryptogams/mips/keccak1600-mips.pl",
@@ -59,21 +59,21 @@ fn cryptogams_script_flavor(feature: impl Fn(&str) -> bool) -> Option<String> {
     let environ = env("CARGO_CFG_TARGET_ENV");
     let family = env("CARGO_CFG_TARGET_FAMILY");
     let mut flavor = match target_arch.as_str() {
-        "aarch64" => match os.as_str() {
+        "arm" | "aarch64" => match os.as_str() {
             "ios" | "macos" => Some("ios64"),
             "windows" => Some("win64"),
             "linux" => Some("linux64"),
             _ => None,
+        },
+        "x86" => match os.as_str() {
+            "windows" => Some("win32n"),
+            _ => Some("elf"),
         },
         "x86_64" => match os.as_str() {
             "macos" => Some("macosx"),
             "windows" if environ == "gnu" => Some("mingw64"),
             _ if family == "unix" => Some("elf"),
             _ => None,
-        },
-        "i686" | "i586" | "i386" => match os.as_str() {
-            "windows" => Some("win32n"),
-            _ => Some("elf"),
         },
         s if s.starts_with("mips") && s.contains("64") => Some("64"),
         s if s.starts_with("powerpc") && s.contains("64") => Some("64"),
