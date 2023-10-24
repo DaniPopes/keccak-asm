@@ -34,7 +34,7 @@ fn cryptogams_script(feature: impl Fn(&str) -> bool) -> &'static str {
         // "arm" => "cryptogams/arm/keccak1600-armv4.pl",
         "aarch64" => "cryptogams/arm/keccak1600-armv8.pl",
         "x86" => {
-            if feature("mmx") {
+            if in_ci() || feature("mmx") {
                 "cryptogams/x86/keccak1600-mmx.pl"
             } else {
                 panic!("x86 targets require MMX support")
@@ -120,6 +120,10 @@ fn perl(path: &str, flavor: Option<&str>, to: &str) {
 #[track_caller]
 fn env(s: &str) -> String {
     maybe_env(s).unwrap()
+}
+
+fn in_ci() -> bool {
+    maybe_env("CI").is_ok()
 }
 
 fn maybe_env(s: &str) -> Result<String, env::VarError> {

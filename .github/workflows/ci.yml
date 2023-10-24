@@ -88,10 +88,6 @@ jobs:
       - uses: taiki-e/setup-cross-toolchain-action@v1
         with:
           target: ${{ matrix.spec.target }}
-      - name: x86 setup
-        if: startsWith(${{ matrix.spec.target }}, 'i') && contains(${{ matrix.spec.target }}, '86')
-        shell: bash
-        run: echo "RUSTFLAGS=-Ctarget-feature=+mmx" >> "$GITHUB_ENV"
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
