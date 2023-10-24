@@ -5,12 +5,30 @@ use std::{env, fs};
 const INCLUDES: &[&str] = &["cryptogams/arm"];
 
 fn main() {
-    let target_arch = env("CARGO_CFG_TARGET_ARCH");
     let target_features = env("CARGO_CFG_TARGET_FEATURE");
     let target_features = target_features.split(',').collect::<Vec<_>>();
     let feature = |s: &str| target_features.iter().any(|&f| f == s);
 
-    let script = match target_arch.as_str() {
+    let script = cryptogams_script(feature);
+    let src = Path::new(script).file_stem().unwrap().to_str().unwrap();
+    let sha3 = Path::new(&env("OUT_DIR")).join(format!("{src}.s"));
+    println!("cargo:rustc-env=SHA3_ASM_SRC={src}");
+
+    let flavor = cryptogams_script_flavor(script, feature);
+    perl(script, flavor.as_deref(), sha3.to_str().unwrap());
+
+    cc::Build::new().includes(INCLUDES).file(sha3).compile("keccak");
+}
+
+fn cryptogams_script(feature: impl Fn(&str) -> bool) -> &'static str {
+    if let Ok(script) = maybe_env("SHA3_ASM_SCRIPT") {
+        eprintln!("cryptogams script overridden by environment variable");
+        // TODO(MSRV-1.72): use `String::leak` instead
+        return Box::leak(script.into_boxed_str())
+    }
+
+    let target_arch = env("CARGO_CFG_TARGET_ARCH");
+    match target_arch.as_str() {
         "x86" => "cryptogams/x86/keccak1600-mmx.pl",
         "x86_64" => {
             if feature("avx512vl") {
@@ -26,12 +44,11 @@ fn main() {
         "aarch64" => "cryptogams/arm/keccak1600-armv8.pl",
         // TODO: ia64, mips, ppc, riscv, s390x in cryptogams/ all have keccak1600
         s => panic!("Unsupported target arch: {s}"),
-    };
-    let src = Path::new(script).file_stem().unwrap().to_str().unwrap();
-    let sha3 = Path::new(&env("OUT_DIR")).join(format!("{src}.s"));
-    println!("cargo:rustc-env=SHA3_ASM_SRC={src}");
+    }
+}
 
-    // perl scripts args
+fn cryptogams_script_flavor(_script: &str, feature: impl Fn(&str) -> bool) -> Option<String> {
+    let target_arch = env("CARGO_CFG_TARGET_ARCH");
     let os = env("CARGO_CFG_TARGET_OS");
     let environ = env("CARGO_CFG_TARGET_ENV");
     let family = env("CARGO_CFG_TARGET_FAMILY");
@@ -55,15 +72,14 @@ fn main() {
         _ => None,
     }
     .map(String::from);
+
     if let Some(s) = &mut flavor {
         if target_arch == "aarch64" && feature("sha3") {
             s.push_str("+sha3");
         }
     }
 
-    perl(script, flavor.as_deref(), sha3.to_str().unwrap());
-
-    cc::Build::new().includes(INCLUDES).file(sha3).compile("keccak");
+    flavor
 }
 
 fn perl(path: &str, flavor: Option<&str>, to: &str) {
@@ -83,7 +99,12 @@ fn perl(path: &str, flavor: Option<&str>, to: &str) {
     }
 }
 
+#[track_caller]
 fn env(s: &str) -> String {
+    maybe_env(s).unwrap()
+}
+
+fn maybe_env(s: &str) -> Result<String, env::VarError> {
     println!("cargo:rerun-if-env-changed={s}");
-    env::var(s).unwrap()
+    env::var(s)
 }
