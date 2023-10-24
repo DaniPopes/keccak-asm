@@ -5,7 +5,7 @@ use std::{env, fs};
 const INCLUDES: &[&str] = &["cryptogams/arm"];
 
 fn main() {
-    let target_features = env("CARGO_CFG_TARGET_FEATURE");
+    let target_features = maybe_env("CARGO_CFG_TARGET_FEATURE").unwrap_or_default();
     let target_features = target_features.split(',').collect::<Vec<_>>();
     let feature = |s: &str| target_features.iter().any(|&f| f == s);
 
