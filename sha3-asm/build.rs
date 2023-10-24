@@ -76,7 +76,8 @@ fn cryptogams_script_flavor(feature: impl Fn(&str) -> bool) -> Option<String> {
             _ => None,
         },
         "x86" => match os.as_str() {
-            "windows" => Some("win32n"),
+            "ios" | "macos" => Some("macosx"),
+            "windows" => Some("coff"),
             _ => Some("elf"),
         },
         "x86_64" => match os.as_str() {
