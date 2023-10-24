@@ -11,11 +11,13 @@ fn main() {
     let feature = |s: &str| target_features.iter().any(|&f| f == s);
 
     let script = cryptogams_script(feature);
+    eprintln!("selected cryptogams script: {script}");
     let src = Path::new(script).file_stem().unwrap().to_str().unwrap();
     let sha3 = Path::new(&env("OUT_DIR")).join(format!("{src}.s"));
     println!("cargo:rustc-env=SHA3_ASM_SRC={src}");
 
     let flavor = cryptogams_script_flavor(feature);
+    eprintln!("selected cryptogams script flavor: {flavor:?}");
     perl(script, flavor.as_deref(), sha3.to_str().unwrap());
 
     cc::Build::new().includes(INCLUDES).file(sha3).compile("keccak");
