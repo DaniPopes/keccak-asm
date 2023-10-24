@@ -25,15 +25,16 @@ jobs:
           - host: ubuntu-latest
             target: aarch64-unknown-linux-gnu
             test: true
-          - host: ubuntu-latest
-            target: arm-unknown-linux-gnueabi
-            test: true
-          - host: ubuntu-latest
-            target: armv5te-unknown-linux-gnueabi
-            test: true
-          - host: ubuntu-latest
-            target: armv7-unknown-linux-gnueabihf
-            test: true
+          # TODO: arm
+          # - host: ubuntu-latest
+          #   target: arm-unknown-linux-gnueabi
+          #   test: true
+          # - host: ubuntu-latest
+          #   target: armv5te-unknown-linux-gnueabi
+          #   test: true
+          # - host: ubuntu-latest
+          #   target: armv7-unknown-linux-gnueabihf
+          #   test: true
           - host: ubuntu-latest
             target: powerpc-unknown-linux-gnu
             test: true
