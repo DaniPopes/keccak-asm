@@ -29,8 +29,9 @@ fn cryptogams_script(feature: impl Fn(&str) -> bool) -> &'static str {
 
     let target_arch = env("CARGO_CFG_TARGET_ARCH");
     match target_arch.as_str() {
+        // TODO: arm (?)
         // "arm" => "cryptogams/arm/keccak1600-armv4.pl",
-        "arm" | "aarch64" => "cryptogams/arm/keccak1600-armv8.pl",
+        "aarch64" => "cryptogams/arm/keccak1600-armv8.pl",
         "x86" => {
             if feature("mmx") {
                 "cryptogams/x86/keccak1600-mmx.pl"

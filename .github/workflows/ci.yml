@@ -91,7 +91,7 @@ jobs:
         shell: bash
         run: |
           if [[ ${{ matrix.spec.target }} =~ i*86 ]]; then
-            export RUSTFLAGS="-Ctarget-feature=+mmx"
+            echo "RUSTFLAGS=-Ctarget-feature=+mmx" >> "$GITHUB_ENV"
           fi
       - uses: Swatinem/rust-cache@v2
         with:
