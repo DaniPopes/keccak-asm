@@ -71,7 +71,7 @@ fn cryptogams_script_flavor(feature: impl Fn(&str) -> bool) -> Option<String> {
             _ if family == "unix" => Some("elf"),
             _ => None,
         },
-        "x86" => match os.as_str() {
+        "i686" | "i586" | "i386" => match os.as_str() {
             "windows" => Some("win32n"),
             _ => Some("elf"),
         },
