@@ -31,7 +31,13 @@ fn cryptogams_script(feature: impl Fn(&str) -> bool) -> &'static str {
     match target_arch.as_str() {
         "arm" => "cryptogams/arm/keccak1600-armv4.pl",
         "aarch64" => "cryptogams/arm/keccak1600-armv8.pl",
-        "x86" => "cryptogams/x86/keccak1600-x86.pl",
+        "x86" => {
+            if feature("mmx") {
+                "cryptogams/x86/keccak1600-mmx.pl"
+            } else {
+                panic!("x86 targets require MMX support")
+            }
+        }
         "x86_64" => {
             if feature("avx512vl") {
                 "cryptogams/x86_64/keccak1600-avx512vl.pl"
