@@ -89,11 +89,9 @@ jobs:
         with:
           target: ${{ matrix.spec.target }}
       - name: x86 setup
+        if: startsWith(${{ matrix.spec.target }}, 'i') && contains(${{ matrix.spec.target }}, '86')
         shell: bash
-        run: |
-          if [[ ${{ matrix.spec.target }} =~ i*86 ]]; then
-            echo "RUSTFLAGS=-Ctarget-feature=+mmx" >> "$GITHUB_ENV"
-          fi
+        run: echo "RUSTFLAGS=-Ctarget-feature=+mmx" >> "$GITHUB_ENV"
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true

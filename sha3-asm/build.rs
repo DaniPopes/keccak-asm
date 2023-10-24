@@ -57,7 +57,7 @@ fn cryptogams_script(feature: impl Fn(&str) -> bool) -> &'static str {
         s if s.starts_with("powerpc") => "cryptogams/ppc/keccak1600-ppc.pl",
         s if s.starts_with("riscv") => "cryptogams/riscv/keccak1600-riscv.pl",
         "s390x" => "cryptogams/s390x/keccak1600-s390x.pl",
-        s => panic!("Unsupported target arch: {s}"),
+        s => panic!("unsupported target arch: {s}"),
     }
 }
 
