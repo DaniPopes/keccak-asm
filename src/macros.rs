@@ -7,13 +7,13 @@ macro_rules! impl_sha3 {
         #[derive(Clone)]
         pub struct $name {
             #[doc(hidden)]
-            state: Sha3State<{ <$output_size>::USIZE * 8 }, $pad>,
+            state: Sha3State<{ <$output_size>::USIZE * 8 }>,
         }
 
         impl Default for $name {
             #[inline]
             fn default() -> Self {
-                Self { state: Default::default() }
+                Self { state: Sha3State::new($pad) }
             }
         }
 

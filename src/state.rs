@@ -9,28 +9,23 @@ const MAX_BUFSZ: usize = (1600 / 8) - 32;
 /// Core SHA-3 state.
 ///
 /// Implementation from [OpenSSL](https://github.com/openssl/openssl/blob/eaee1765a49c6a8ba728e3e2d18bb67bff8aaa55/include/internal/sha3.h#L34).
-// Note: here block_size, md_size (output size), pad are all compile-time constants,
+// Note: here block_size, md_size (output size) are compile-time constants,
 // while the OpenSSL implementation uses runtime variables stored in this struct
 #[derive(Clone)]
 #[allow(non_snake_case)]
-pub(crate) struct Sha3State<const BITS: usize, const PAD: u8> {
+pub(crate) struct Sha3State<const BITS: usize> {
     /// Core state buffer.
     A: Buffer,
     /// Used bytes in the temporary buffer.
     bufsz: usize,
     /// Temporary buffer.
     buf: [MaybeUninit<u8>; MAX_BUFSZ],
-}
-
-impl<const BITS: usize, const PAD: u8> Default for Sha3State<BITS, PAD> {
-    #[inline(always)]
-    fn default() -> Self {
-        Self::new()
-    }
+    /// The padding byte.
+    pad: u8,
 }
 
 #[cfg(feature = "zeroize")]
-impl<const BITS: usize, const PAD: u8> Drop for Sha3State<BITS, PAD> {
+impl<const BITS: usize> Drop for Sha3State<BITS> {
     fn drop(&mut self) {
         self.A.zeroize();
         self.buf.zeroize();
@@ -38,19 +33,20 @@ impl<const BITS: usize, const PAD: u8> Drop for Sha3State<BITS, PAD> {
 }
 
 #[cfg(feature = "zeroize")]
-impl<const BITS: usize, const PAD: u8> ZeroizeOnDrop for Sha3State<BITS, PAD> {}
+impl<const BITS: usize> ZeroizeOnDrop for Sha3State<BITS> {}
 
-impl<const BITS: usize, const PAD: u8> Sha3State<BITS, PAD> {
+impl<const BITS: usize> Sha3State<BITS> {
     const OUT_SIZE: usize = BITS / 8;
     const BLOCK_SIZE: usize = (1600 - BITS * 2) / 8;
 
     #[inline(always)]
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(pad: u8) -> Self {
         Self {
             A: [0; 25],
-            bufsz: 0,
             // TODO: MaybeUninit::uninit_array() is safe but unstable
             buf: unsafe { MaybeUninit::uninit().assume_init() },
+            bufsz: 0,
+            pad,
         }
     }
 
@@ -67,7 +63,7 @@ impl<const BITS: usize, const PAD: u8> Sha3State<BITS, PAD> {
     /// `inp` must point to at least `len` bytes.
     #[inline]
     pub(crate) unsafe fn update(&mut self, mut inp: *const u8, mut len: usize) {
-        let bsz: usize = Self::BLOCK_SIZE;
+        let bsz = Self::BLOCK_SIZE;
 
         if len == 0 {
             return
@@ -109,7 +105,7 @@ impl<const BITS: usize, const PAD: u8> Sha3State<BITS, PAD> {
     /// `out` must point to at least `BITS / 8` bytes.
     #[inline]
     pub(crate) unsafe fn finalize(&mut self, out: *mut u8) {
-        let bsz: usize = Self::BLOCK_SIZE;
+        let bsz = Self::BLOCK_SIZE;
 
         let num = self.bufsz;
 
@@ -117,7 +113,7 @@ impl<const BITS: usize, const PAD: u8> Sha3State<BITS, PAD> {
         // in which case both byte operations below are performed on
         // same byte...
         memset(self.buf().add(num), 0, bsz - num);
-        *self.buf().add(num) = PAD;
+        *self.buf().add(num) = self.pad;
         *self.buf().add(bsz - 1) |= 0x80;
 
         SHA3_absorb(&mut self.A, self.buf(), bsz, bsz);
