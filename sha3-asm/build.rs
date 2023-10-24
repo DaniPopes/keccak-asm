@@ -7,6 +7,7 @@ const INCLUDES: &[&str] = &["cryptogams/arm"];
 fn main() {
     let target_features = maybe_env("CARGO_CFG_TARGET_FEATURE").unwrap_or_default();
     let target_features = target_features.split(',').collect::<Vec<_>>();
+    eprintln!("target features: {target_features:?}");
     let feature = |s: &str| target_features.iter().any(|&f| f == s);
 
     let script = cryptogams_script(feature);
