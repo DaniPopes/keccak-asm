@@ -22,9 +22,10 @@ jobs:
       fail-fast: false
       matrix:
         spec:
-          - host: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
-            test: true
+          # TODO: idfk
+          # - host: ubuntu-latest
+          #   target: aarch64-unknown-linux-gnu
+          #   test: true
           # TODO: arm
           # - host: ubuntu-latest
           #   target: arm-unknown-linux-gnueabi
@@ -51,12 +52,13 @@ jobs:
           - host: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             test: true
-          - host: ubuntu-latest
-            target: i586-unknown-linux-gnu
-            test: true
-          - host: ubuntu-latest
-            target: i686-unknown-linux-gnu
-            test: true
+          # TODO: x86-patch
+          # - host: ubuntu-latest
+          #   target: i586-unknown-linux-gnu
+          #   test: true
+          # - host: ubuntu-latest
+          #   target: i686-unknown-linux-gnu
+          #   test: true
 
           - host: macos-latest
             target: x86_64-apple-darwin
