@@ -30,7 +30,6 @@ fn cryptogams_script(feature: impl Fn(&str) -> bool) -> &'static str {
     let target_arch = env("CARGO_CFG_TARGET_ARCH");
     match target_arch.as_str() {
         "aarch64" => "cryptogams/arm/keccak1600-armv8.pl",
-        "x86" => "cryptogams/x86/keccak1600-mmx.pl",
         "x86_64" => {
             if feature("avx512vl") {
                 "cryptogams/x86_64/keccak1600-avx512vl.pl"
@@ -42,6 +41,7 @@ fn cryptogams_script(feature: impl Fn(&str) -> bool) -> &'static str {
                 "cryptogams/x86_64/keccak1600-x86_64.pl"
             }
         }
+        "i686" | "i586" | "i386" => "cryptogams/x86/keccak1600-x86.pl",
         // TODO: armv4
         // TODO: cil (?)
         // TODO: ia64 (?)
