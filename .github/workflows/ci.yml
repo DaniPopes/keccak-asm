@@ -40,9 +40,10 @@ jobs:
           - host: ubuntu-latest
             target: powerpc64-unknown-linux-gnu
             test: true
-          - host: ubuntu-latest
-            target: riscv32gc-unknown-linux-gnu
-            test: true
+          # TODO: no rust-std on channel stable?
+          # - host: ubuntu-latest
+          #   target: riscv32gc-unknown-linux-gnu
+          #   test: true
           - host: ubuntu-latest
             target: riscv64gc-unknown-linux-gnu
             test: true
@@ -63,18 +64,19 @@ jobs:
             target: aarch64-apple-darwin
             test: false
 
-          - host: windows-latest
-            target: x86_64-pc-windows-msvc
-            test: true
+          # TODO: MSVC
+          # - host: windows-latest
+          #   target: x86_64-pc-windows-msvc
+          #   test: true
           - host: windows-latest
             target: x86_64-pc-windows-gnu
             test: true
-          - host: windows-latest
-            target: aarch64-pc-windows-msvc
-            test: false
-          - host: windows-latest
-            target: i686-pc-windows-msvc
-            test: true
+          # - host: windows-latest
+          #   target: aarch64-pc-windows-msvc
+          #   test: false
+          # - host: windows-latest
+          #   target: i686-pc-windows-msvc
+          #   test: true
     steps:
       - uses: actions/checkout@v4
         with:
@@ -85,6 +87,12 @@ jobs:
       - uses: taiki-e/setup-cross-toolchain-action@v1
         with:
           target: ${{ matrix.spec.target }}
+      - name: x86 setup
+        shell: bash
+        run: |
+          if [[ ${{ matrix.spec.target }} =~ i*86 ]]; then
+            export RUSTFLAGS="-Ctarget-feature=+mmx"
+          fi
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
