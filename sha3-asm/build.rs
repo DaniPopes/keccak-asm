@@ -139,7 +139,7 @@ fn perl(path: &str, flavor: Option<&str>, target_arch: &str, to: &str) {
 
     if stdout.trim().is_empty() {
         assert!(Path::new(to).exists(), "stdout for {path} is empty, but {to} was not created");
-        eprintln!("stdout for {path} is empty, file was written by perl script");
+        eprintln!("stdout for {path} is empty: file {to} was written by perl script");
     } else {
         eprintln!("writing stdout manually to {to}");
         fs::write(to, stdout.as_bytes()).unwrap();
