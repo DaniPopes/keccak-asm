@@ -131,18 +131,17 @@ fn perl(path: &str, flavor: Option<&str>, target_arch: &str, to: &str) {
 
     let out = cmd.output().unwrap();
     let stdout = String::from_utf8_lossy(&out.stdout);
-    let stdout = stdout.trim_start(); // Trimming end causes assembler warnings.
     let stderr = String::from_utf8_lossy(&out.stderr);
     let stderr = stderr.trim();
 
     assert!(out.status.success(), "perl for {path} failed:\n{stderr}");
     assert!(stderr.is_empty(), "non-empty stderr for {path}:\n{stderr}");
 
-    if stdout.is_empty() {
+    if stdout.trim().is_empty() {
         eprintln!("stdout for {path} is empty, file was written by perl script");
     } else {
         eprintln!("writing stdout manually to {to}");
-        fs::write(to, stdout).unwrap();
+        fs::write(to, stdout.as_bytes()).unwrap();
     }
 }
 
