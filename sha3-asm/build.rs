@@ -129,6 +129,7 @@ fn perl(path: &str, flavor: Option<&str>, target_arch: &str, to: &str) {
     }
     cmd.arg(to);
 
+    eprintln!("running script: {cmd:?}");
     let out = cmd.output().unwrap();
     let stdout = String::from_utf8_lossy(&out.stdout);
     let stderr = String::from_utf8_lossy(&out.stderr);
@@ -138,7 +139,7 @@ fn perl(path: &str, flavor: Option<&str>, target_arch: &str, to: &str) {
     assert!(stderr.is_empty(), "non-empty stderr for {path}:\n{stderr}");
 
     if stdout.trim().is_empty() {
-        assert!(Path::new(to).exists(), "stdout for {path} is empty, but {to} was not created");
+        assert!(Path::new(to).exists(), "assembly file was not created at {to}");
         eprintln!("stdout for {path} is empty: file {to} was written by perl script");
     } else {
         eprintln!("writing stdout manually to {to}");
