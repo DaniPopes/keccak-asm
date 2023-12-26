@@ -102,6 +102,8 @@ jobs:
         if: ${{ !matrix.tier3 }}
         with:
           target: ${{ matrix.target }}
+      - uses: dtolnay/rust-toolchain@nightly
+        if: ${{ matrix.tier3 }}
       - uses: taiki-e/setup-cross-toolchain-action@v1
         with:
           target: ${{ matrix.target }}
