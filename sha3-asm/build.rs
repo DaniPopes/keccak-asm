@@ -127,10 +127,15 @@ fn perl(path: &str, flavor: Option<&str>, to: &str) {
     cmd.arg(to);
     let out = cmd.output().unwrap();
     let stdout = String::from_utf8_lossy(&out.stdout);
+    let stdout = stdout.trim();
     let stderr = String::from_utf8_lossy(&out.stderr);
+    let stderr = stderr.trim();
     assert!(out.status.success(), "perl for {path} failed:\n{stderr}");
-    assert!(!stdout.trim().is_empty(), "stdout for {path} is empty:\n{stderr}");
-    fs::write(to, stdout.as_bytes()).unwrap();
+    if stdout.is_empty() {
+        eprintln!("stdout for {path} is empty:\n{stderr}")
+    } else {
+        fs::write(to, stdout).unwrap();
+    }
 }
 
 #[track_caller]
