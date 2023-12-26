@@ -1,6 +1,5 @@
-
 [workspace]
-members = [".", "sha3-asm"]
+members = ["sha3-asm"]
 
 [workspace.package]
 version = "0.1.0"
