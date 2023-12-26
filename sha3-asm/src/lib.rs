@@ -1,16 +1,7 @@
-//! Assembly implementation of the [SHA-3] compression functions.
-//!
-//! This crate is not intended for direct use, most users should
-//! prefer the [`sha3`] crate with enabled `asm` feature instead.
-//!
-//! Only x86, x86-64, and (partially) AArch64 architectures are
-//! currently supported.
-//!
-//! [SHA-3]: https://en.wikipedia.org/wiki/SHA-3
-//! [`sha3`]: https://crates.io/crates/sha3
-
+#![doc = include_str!("../README.md")]
 #![no_std]
 #![warn(missing_docs, rust_2018_idioms)]
+#![allow(rustdoc::broken_intra_doc_links)]
 
 /// SHA-3 state buffer.
 pub type Buffer = [u64; 25];

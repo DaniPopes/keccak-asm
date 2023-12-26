@@ -1,6 +1,7 @@
 #![doc = include_str!("../README.md")]
 #![no_std]
 #![warn(missing_docs, rust_2018_idioms)]
+#![allow(rustdoc::broken_intra_doc_links)]
 
 pub use digest::{self, Digest};
 
