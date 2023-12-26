@@ -87,7 +87,7 @@ fn cryptogams_script_flavor(target_arch: &str, feature: impl Fn(&str) -> bool) -
     let mut flavor = match target_arch {
         "arm" | "aarch64" => match os.as_str() {
             "ios" | "macos" => Some("ios64"),
-            "windows" => Some("win64"),
+            // "windows" => Some("win64"),
             "linux" => Some("linux64"),
             _ => None,
         },
@@ -122,15 +122,11 @@ fn perl(path: &str, flavor: Option<&str>, target_arch: &str, to: &str) {
     let mut cmd = Command::new("perl");
     cmd.arg(path);
 
-    let to_is_second = target_arch == "arm" || target_arch == "aarch64";
-    if !to_is_second {
-        cmd.arg(to);
-    }
+    // let to_is_second = target_arch == "arm" || target_arch == "aarch64";
+    let _ = target_arch;
+    cmd.arg(to);
     if let Some(flavor) = flavor {
         cmd.arg(flavor);
-    }
-    if to_is_second {
-        cmd.arg(to);
     }
 
     let out = cmd.output().unwrap();
