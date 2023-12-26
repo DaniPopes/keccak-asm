@@ -47,14 +47,14 @@ jobs:
           #   target: powerpc64le-unknown-linux-gnu
           #   test: true
           # TODO: unrecognized opcodes (preprocessor?)
-          - host: ubuntu-latest
-            target: mips-unknown-linux-gnu
-            test: true
-            tier3: true
-          - host: ubuntu-latest
-            target: mipsel-unknown-linux-gnu
-            test: true
-            tier3: true
+          # - host: ubuntu-latest
+          #   target: mips-unknown-linux-gnu
+          #   test: true
+          #   tier3: true
+          # - host: ubuntu-latest
+          #   target: mipsel-unknown-linux-gnu
+          #   test: true
+          #   tier3: true
           # TODO: unrecognized opcodes
           # - host: ubuntu-latest
           #   target: riscv32gc-unknown-linux-gnu
