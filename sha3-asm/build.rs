@@ -58,7 +58,9 @@ fn cryptogams_script(feature: impl Fn(&str) -> bool) -> &'static str {
         "x86_64" => {
             if feature("avx512vl") {
                 "cryptogams/x86_64/keccak1600-avx512vl.pl"
-            // These are obsolete
+            // These are obsolete, plain x86_64 implementation is faster:
+            // https://github.com/DaniPopes/bench-keccak256
+
             // } else if feature("avx512f") {
             //     "cryptogams/x86_64/keccak1600-avx512.pl"
             // } else if feature("avx2") {
