@@ -24,10 +24,25 @@ fn main() {
 }
 
 fn cryptogams_script(feature: impl Fn(&str) -> bool) -> &'static str {
+    // Allow overriding the script path via an environment variable.
     if let Ok(script) = maybe_env("SHA3_ASM_SCRIPT") {
         eprintln!("cryptogams script overridden by environment variable");
+        let p = Path::new(&script);
+        assert!(p.is_relative(), "SHA3_ASM_SCRIPT={script:?} is not relative");
+
+        let p = p.strip_prefix("cryptogams").unwrap_or(p);
+        let p = Path::new("cryptogams").join(p);
+        let meta = p.metadata().unwrap_or_else(|e| panic!("SHA3_ASM_SCRIPT={p:?}: {e}"));
+
+        assert!(meta.is_file(), "SHA3_ASM_SCRIPT={p:?} is not a file");
+        assert!(
+            p.components().all(|c| c != std::path::Component::ParentDir),
+            "SHA3_ASM_SCRIPT={p:?} contains a parent directory component"
+        );
+
+        let p = p.to_str().unwrap().to_string();
         // TODO(MSRV-1.72): use `String::leak` instead
-        return Box::leak(script.into_boxed_str())
+        return Box::leak(p.into_boxed_str())
     }
 
     let target_arch = env("CARGO_CFG_TARGET_ARCH");
