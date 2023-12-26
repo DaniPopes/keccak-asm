@@ -102,10 +102,6 @@ jobs:
         if: ${{ !matrix.tier3 }}
         with:
           target: ${{ matrix.target }}
-      - uses: dtolnay/rust-toolchain@nightly
-        if: ${{ matrix.tier3 }}
-        with:
-          target: ${{ matrix.target }}
       - uses: taiki-e/setup-cross-toolchain-action@v1
         with:
           target: ${{ matrix.target }}
@@ -114,6 +110,7 @@ jobs:
           cache-on-failure: true
       - name: build
         if: ${{ !matrix.test }}
+        shell: bash
         run: |
           FLAGS=()
           [ -n "${{ matrix.tier3 }}" ] && FLAGS+=(-Zbuild-std)
@@ -121,6 +118,7 @@ jobs:
           cargo build --workspace --target ${{ matrix.target }} --all-targets -vv "${FLAGS[@]}"
       - name: test
         if: ${{ matrix.test }}
+        shell: bash
         run: |
           FLAGS=()
           [ -n "${{ matrix.tier3 }}" ] && FLAGS+=(-Zbuild-std)
