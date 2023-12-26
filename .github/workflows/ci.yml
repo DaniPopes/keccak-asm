@@ -119,7 +119,7 @@ jobs:
           submodules: recursive
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "1.60" # MSRV
+          toolchain: "1.64" # MSRV
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
