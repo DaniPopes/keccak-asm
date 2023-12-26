@@ -14,10 +14,9 @@ fn main() {
     let sha3 = Path::new(&env("OUT_DIR")).join(format!("{src}.s"));
     println!("cargo:rustc-env=SHA3_ASM_SRC={src}");
 
-    let target_arch = env("CARGO_CFG_TARGET_ARCH");
-    let flavor = cryptogams_script_flavor(&target_arch, feature);
+    let flavor = cryptogams_script_flavor(feature);
     eprintln!("selected cryptogams script flavor: {flavor:?}");
-    perl(script, flavor.as_deref(), &target_arch, sha3.to_str().unwrap());
+    perl(script, flavor.as_deref(), sha3.to_str().unwrap());
 
     cc::Build::new().includes(INCLUDES).file(sha3).compile("keccak");
 }
@@ -80,11 +79,12 @@ fn cryptogams_script(feature: impl Fn(&str) -> bool) -> &'static str {
     }
 }
 
-fn cryptogams_script_flavor(target_arch: &str, feature: impl Fn(&str) -> bool) -> Option<String> {
+fn cryptogams_script_flavor(feature: impl Fn(&str) -> bool) -> Option<String> {
     let os = env("CARGO_CFG_TARGET_OS");
     let environ = env("CARGO_CFG_TARGET_ENV");
     let family = env("CARGO_CFG_TARGET_FAMILY");
-    let mut flavor = match target_arch {
+    let target_arch = env("CARGO_CFG_TARGET_ARCH");
+    let mut flavor = match target_arch.as_str() {
         "arm" | "aarch64" => match os.as_str() {
             "ios" | "macos" => Some("ios64"),
             "windows" => Some("win64"),
@@ -118,15 +118,11 @@ fn cryptogams_script_flavor(target_arch: &str, feature: impl Fn(&str) -> bool) -
     flavor
 }
 
-fn perl(path: &str, flavor: Option<&str>, target_arch: &str, to: &str) {
+fn perl(path: &str, flavor: Option<&str>, to: &str) {
     let mut cmd = Command::new("perl");
-    cmd.arg(path);
 
-    // let to_is_second = target_arch == "arm" || target_arch == "aarch64";
-    let _ = target_arch;
-    if let Some(flavor) = flavor {
-        cmd.arg(flavor);
-    }
+    cmd.arg(path);
+    cmd.arg(flavor.unwrap_or("default"));
     cmd.arg(to);
 
     eprintln!("running script: {cmd:?}");
