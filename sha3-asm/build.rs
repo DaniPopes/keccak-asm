@@ -87,7 +87,7 @@ fn cryptogams_script_flavor(feature: impl Fn(&str) -> bool) -> Option<String> {
     let mut flavor = match target_arch.as_str() {
         "arm" | "aarch64" => match os.as_str() {
             "ios" | "macos" => Some("ios64"),
-            "windows" => Some("win64"),
+            "windows" => Some("coff64"),
             "linux" => Some("linux64"),
             _ => None,
         },
