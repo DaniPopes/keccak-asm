@@ -120,28 +120,32 @@ fn cryptogams_script_flavor(target_arch: &str, feature: impl Fn(&str) -> bool) -
 
 fn perl(path: &str, flavor: Option<&str>, target_arch: &str, to: &str) {
     let mut cmd = Command::new("perl");
+    cmd.arg(path);
 
-    let path_is_last = target_arch == "arm" || target_arch == "aarch64";
-    if !path_is_last {
-        cmd.arg(path);
+    let to_is_second = target_arch == "arm" || target_arch == "aarch64";
+    if !to_is_second {
+        cmd.arg(to);
     }
     if let Some(flavor) = flavor {
         cmd.arg(flavor);
     }
-    if path_is_last {
-        cmd.arg(path);
+    if to_is_second {
+        cmd.arg(to);
     }
 
-    cmd.arg(to);
     let out = cmd.output().unwrap();
     let stdout = String::from_utf8_lossy(&out.stdout);
-    let stdout = stdout.trim();
+    let stdout = stdout.trim_start(); // Trimming end causes assembler warnings.
     let stderr = String::from_utf8_lossy(&out.stderr);
     let stderr = stderr.trim();
+
     assert!(out.status.success(), "perl for {path} failed:\n{stderr}");
+    assert!(stderr.is_empty(), "non-empty stderr for {path}:\n{stderr}");
+
     if stdout.is_empty() {
-        eprintln!("stdout for {path} is empty:\n{stderr}")
+        eprintln!("stdout for {path} is empty, file was written by perl script");
     } else {
+        eprintln!("writing stdout manually to {to}");
         fs::write(to, stdout).unwrap();
     }
 }
