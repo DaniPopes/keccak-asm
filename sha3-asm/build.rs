@@ -60,10 +60,11 @@ fn cryptogams_script(feature: impl Fn(&str) -> bool) -> &'static str {
         "x86_64" => {
             if feature("avx512vl") {
                 "cryptogams/x86_64/keccak1600-avx512vl.pl"
-            } else if feature("avx512f") {
-                "cryptogams/x86_64/keccak1600-avx512.pl"
-            } else if feature("avx2") {
-                "cryptogams/x86_64/keccak1600-avx2.pl"
+            // These are obsolete
+            // } else if feature("avx512f") {
+            //     "cryptogams/x86_64/keccak1600-avx512.pl"
+            // } else if feature("avx2") {
+            //     "cryptogams/x86_64/keccak1600-avx2.pl"
             } else {
                 "cryptogams/x86_64/keccak1600-x86_64.pl"
             }
