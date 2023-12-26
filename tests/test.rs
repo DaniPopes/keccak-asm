@@ -1,7 +1,6 @@
 #![no_std]
 
-use digest::dev::fixed_reset_test;
-use digest::new_test;
+use digest::{dev::fixed_reset_test, new_test};
 
 new_test!(keccak_224, "keccak_224", keccak_asm::Keccak224, fixed_reset_test);
 new_test!(keccak_256, "keccak_256", keccak_asm::Keccak256, fixed_reset_test);

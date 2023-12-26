@@ -6,13 +6,15 @@
 pub use digest::{self, Digest};
 
 use core::fmt;
-use digest::block_buffer::Eager;
 #[cfg(feature = "oid")]
 use digest::const_oid::{AssociatedOid, ObjectIdentifier};
-use digest::consts::{U104, U136, U144, U28, U32, U48, U64, U72};
-use digest::core_api::{AlgorithmName, BlockSizeUser, BufferKindUser};
-use digest::typenum::Unsigned;
-use digest::{FixedOutput, FixedOutputReset, HashMarker, Output, OutputSizeUser, Reset, Update};
+use digest::{
+    block_buffer::Eager,
+    consts::{U104, U136, U144, U28, U32, U48, U64, U72},
+    core_api::{AlgorithmName, BlockSizeUser, BufferKindUser},
+    typenum::Unsigned,
+    FixedOutput, FixedOutputReset, HashMarker, Output, OutputSizeUser, Reset, Update,
+};
 
 #[macro_use]
 mod macros;

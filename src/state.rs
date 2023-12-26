@@ -1,5 +1,4 @@
-use core::mem::MaybeUninit;
-use core::ptr;
+use core::{mem::MaybeUninit, ptr};
 use sha3_asm::{Buffer, SHA3_absorb, SHA3_squeeze};
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -70,7 +69,7 @@ impl<const BITS: usize, const PAD: u8> Sha3State<BITS, PAD> {
         let bsz: usize = Self::BLOCK_SIZE;
 
         if len == 0 {
-            return
+            return;
         }
 
         let num = self.bufsz;
@@ -83,7 +82,7 @@ impl<const BITS: usize, const PAD: u8> Sha3State<BITS, PAD> {
             if len < rem {
                 memcpy(self.buf().add(num), inp, len);
                 self.bufsz += len;
-                return
+                return;
             }
             // otherwise fill up the buffer and absorb the buffer
             memcpy(self.buf().add(num), inp, rem);

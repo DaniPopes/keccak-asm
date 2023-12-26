@@ -1,6 +1,4 @@
-use std::path::Path;
-use std::process::Command;
-use std::{env, fs};
+use std::{env, fs, path::Path, process::Command};
 
 const INCLUDES: &[&str] = &["cryptogams/arm"];
 
@@ -42,7 +40,7 @@ fn cryptogams_script(feature: impl Fn(&str) -> bool) -> &'static str {
 
         let p = p.to_str().unwrap().to_string();
         // TODO(MSRV-1.72): use `String::leak` instead
-        return Box::leak(p.into_boxed_str())
+        return Box::leak(p.into_boxed_str());
     }
 
     let target_arch = env("CARGO_CFG_TARGET_ARCH");

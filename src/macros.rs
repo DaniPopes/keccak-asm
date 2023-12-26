@@ -1,8 +1,5 @@
 macro_rules! impl_sha3 {
-    (
-        $name:ident, $output_size:ident,
-        $rate:ident, $pad:expr, $alg_name:expr $(,)?
-    ) => {
+    ($name:ident, $output_size:ident, $rate:ident, $pad:expr, $alg_name:expr $(,)?) => {
         #[doc = concat!($alg_name, " hasher state.")]
         #[derive(Clone)]
         pub struct $name {
@@ -76,8 +73,7 @@ macro_rules! impl_sha3 {
     };
 
     (
-        $name:ident, $output_size:ident,
-        $rate:ident, $pad:expr, $alg_name:expr, $oid:literal $(,)?
+        $name:ident, $output_size:ident, $rate:ident, $pad:expr, $alg_name:expr, $oid:literal $(,)?
     ) => {
         impl_sha3!($name, $output_size, $rate, $pad, $alg_name);
 
