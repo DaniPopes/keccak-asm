@@ -125,7 +125,7 @@ fn perl(path: &str, flavor: Option<&str>, to: &str) {
     cmd.arg(flavor.unwrap_or("default"));
     let to_relative = Path::new(to);
     let to_relative = to_relative.strip_prefix(&env::current_dir().unwrap()).unwrap_or(to_relative);
-    let to_relative = to_relative.to_str().unwrap().replace("\\", "/");
+    let to_relative = to_relative.to_str().unwrap().replace('\\', "/");
     cmd.arg(to_relative);
 
     eprintln!("running script: {cmd:?}");
