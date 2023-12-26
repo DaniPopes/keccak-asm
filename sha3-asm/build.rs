@@ -124,10 +124,10 @@ fn perl(path: &str, flavor: Option<&str>, target_arch: &str, to: &str) {
 
     // let to_is_second = target_arch == "arm" || target_arch == "aarch64";
     let _ = target_arch;
-    cmd.arg(to);
     if let Some(flavor) = flavor {
         cmd.arg(flavor);
     }
+    cmd.arg(to);
 
     let out = cmd.output().unwrap();
     let stdout = String::from_utf8_lossy(&out.stdout);
