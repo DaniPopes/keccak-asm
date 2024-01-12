@@ -18,11 +18,14 @@ fn main() {
     eprintln!("selected cryptogams script flavor: {flavor:?}");
     perl(script, flavor.as_deref(), sha3.to_str().unwrap());
 
-    cc::Build::new()
-        .define("__SIZEOF_POINTER__", "8")
-        .includes(INCLUDES)
-        .file(sha3)
-        .compile("keccak");
+    // Patch the assembly file.
+    if env("TARGET") == "aarch64-unknown-linux-gnu" {
+        let file = fs::read_to_string(&sha3).unwrap();
+        let patched = file.replace("__SIZEOF_POINTER__", "8");
+        fs::write(&sha3, patched).unwrap();
+    }
+
+    cc::Build::new().includes(INCLUDES).file(sha3).compile("keccak");
 }
 
 fn cryptogams_script(feature: impl Fn(&str) -> bool) -> &'static str {
