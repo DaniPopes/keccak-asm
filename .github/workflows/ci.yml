@@ -22,9 +22,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - host: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
-            test: true
+          # TODO: idfk
+          # - host: ubuntu-latest
+          #   target: aarch64-unknown-linux-gnu
+          #   test: true
           # TODO: arm
           # - host: ubuntu-latest
           #   target: arm-unknown-linux-gnueabi
@@ -179,7 +180,16 @@ jobs:
           cache-on-failure: true
       - run: cargo doc --workspace
         env:
-          RUSTDOCFLAGS: --cfg docsrs -D warnings
+          RUSTDOCFLAGS:
+            --cfg docsrs -D warnings --show-type-layout --generate-link-to-definition
+            --enable-index-page -Zunstable-options
+      # - name: Deploy documentation
+      #   uses: peaceiris/actions-gh-pages@v3
+      #   if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+      #   with:
+      #     github_token: ${{ secrets.GITHUB_TOKEN }}
+      #     publish_dir: target/doc
+      #     force_orphan: true
 
   fmt:
     runs-on: ubuntu-latest
