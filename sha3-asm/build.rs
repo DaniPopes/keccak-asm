@@ -18,7 +18,11 @@ fn main() {
     eprintln!("selected cryptogams script flavor: {flavor:?}");
     perl(script, flavor.as_deref(), sha3.to_str().unwrap());
 
-    cc::Build::new().includes(INCLUDES).file(sha3).compile("keccak");
+    cc::Build::new()
+        .define("__SIZEOF_POINTER__", "8")
+        .includes(INCLUDES)
+        .file(sha3)
+        .compile("keccak");
 }
 
 fn cryptogams_script(feature: impl Fn(&str) -> bool) -> &'static str {
