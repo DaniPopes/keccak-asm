@@ -10,11 +10,11 @@ Forked from OpenSSL, [Cryptogams](https://github.com/dot-asm/cryptogams), and [R
 
 ## Support
 
-| Architecture | Linux | macOS | Windows |
+| Architecture | Linux | macOS | Windows[1] |
 |:------------:|:-----:|:-----:|:-------:|
 |      x86     |   ❌   |   ❌   |    ❌    |
-|    x86_64    |   ✅   |   ✅   |   ✅[1]  |
-|    aarch64   |  ✅[2] |   ✅   |    ❌    |
+|    x86_64    |   ✅   |   ✅   |    ✅    |
+|    aarch64   |   ❌   |   ✅   |    ❌    |
 | powerpc{,64} |   ✅   |  N/A  |   N/A   |
 | powerpc64le  |   ❌   |  N/A  |   N/A   |
 |    riscv32   |   ❌   |  N/A  |   N/A   |
@@ -22,7 +22,6 @@ Forked from OpenSSL, [Cryptogams](https://github.com/dot-asm/cryptogams), and [R
 |   mips{,el}  |   ❌   |  N/A  |   N/A   |
 
 [1] The MSVC toolchain is not supported, so only `gnu` and `gnullvm` targets will compile
-[2] Theoretically supported, but untested in CI
 
 ## License
 
