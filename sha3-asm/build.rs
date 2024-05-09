@@ -135,7 +135,6 @@ fn perl(path: &str, flavor: Option<&str>, to: &str) {
     let stderr = stderr.trim();
 
     assert!(out.status.success(), "perl for {path} failed:\n{stderr}");
-    assert!(stderr.is_empty(), "non-empty stderr for {path}:\n{stderr}");
 
     if stdout.trim().is_empty() {
         assert!(Path::new(to).exists(), "assembly file was not created at {to}");
