@@ -1,7 +1,5 @@
 use std::{env, fs, path::Path, process::Command};
 
-const INCLUDES: &[&str] = &["cryptogams/arm"];
-
 fn main() {
     let target_features = maybe_env("CARGO_CFG_TARGET_FEATURE").unwrap_or_default();
     let target_features = target_features.split(',').collect::<Vec<_>>();
@@ -16,9 +14,14 @@ fn main() {
 
     let flavor = cryptogams_script_flavor(feature);
     eprintln!("selected cryptogams script flavor: {flavor:?}");
-    perl(script, flavor.as_deref(), sha3.to_str().unwrap());
+    run_perlasm(script, flavor.as_deref(), &sha3);
 
-    cc::Build::new().includes(INCLUDES).file(sha3).compile("keccak");
+    let target_arch = env("CARGO_CFG_TARGET_ARCH");
+    let mut cc = cc::Build::new();
+    if is_any_arm(&target_arch) {
+        cc.include("cryptogams/arm");
+    }
+    cc.file(sha3).compile("keccak");
 }
 
 fn cryptogams_script(feature: impl Fn(&str) -> bool) -> &'static str {
@@ -84,7 +87,7 @@ fn cryptogams_script_flavor(feature: impl Fn(&str) -> bool) -> Option<String> {
     let family = env("CARGO_CFG_TARGET_FAMILY");
     let target_arch = env("CARGO_CFG_TARGET_ARCH");
     let mut flavor = match target_arch.as_str() {
-        "arm" | "aarch64" => match os.as_str() {
+        s if is_any_arm(s) => match os.as_str() {
             "ios" | "macos" => Some("ios64"),
             "windows" => Some("coff64"),
             "linux" => Some("linux64"),
@@ -119,29 +122,28 @@ fn cryptogams_script_flavor(feature: impl Fn(&str) -> bool) -> Option<String> {
     flavor
 }
 
-fn perl(path: &str, flavor: Option<&str>, to: &str) {
+fn run_perlasm(path: &str, flavor: Option<&str>, to: &Path) {
     let mut cmd = Command::new("perl");
 
     cmd.arg(path);
     cmd.arg(flavor.unwrap_or("void"));
-    let to_relative = Path::new(to);
-    let to_relative = to_relative.strip_prefix(env::current_dir().unwrap()).unwrap_or(to_relative);
+    let to_relative = to.strip_prefix(env::current_dir().unwrap()).unwrap_or(to);
     let to_relative = to_relative.to_str().unwrap().replace('\\', "/");
     cmd.arg(to_relative);
 
     eprintln!("running script: {cmd:?}");
-    let out = cmd.output().unwrap();
+    let out = cmd.output().unwrap_or_else(|e| panic!("could not execute perl ({cmd:?}): {e}"));
     let stdout = String::from_utf8_lossy(&out.stdout);
     let stderr = String::from_utf8_lossy(&out.stderr);
     let stderr = stderr.trim();
 
-    assert!(out.status.success(), "perl for {path} failed:\n{stderr}");
+    assert!(out.status.success(), "perl for {path} failed ({cmd:?}):\n{stderr}");
 
     if stdout.trim().is_empty() {
-        assert!(Path::new(to).exists(), "assembly file was not created at {to}");
-        eprintln!("stdout for {path} is empty: file {to} was written by perl script");
+        assert!(to.exists(), "assembly file was not created at {to:?}");
+        eprintln!("stdout for {path} is empty: file {to:?} was written by perl script");
     } else {
-        eprintln!("writing stdout manually to {to}");
+        eprintln!("writing stdout manually to {to:?}");
         fs::write(to, stdout.as_bytes()).unwrap();
     }
 }
@@ -158,4 +160,8 @@ fn in_ci() -> bool {
 fn maybe_env(s: &str) -> Result<String, env::VarError> {
     println!("cargo:rerun-if-env-changed={s}");
     env::var(s)
+}
+
+fn is_any_arm(s: &str) -> bool {
+    s.starts_with("arm") || s.starts_with("aarch64")
 }
