@@ -14,7 +14,7 @@ Forked from OpenSSL, [Cryptogams](https://github.com/dot-asm/cryptogams), and [R
 |:------------:|:-----:|:-----:|:-------:|
 |      x86     |   ❌   |   ❌   |    ❌    |
 |    x86_64    |   ✅   |   ✅   |    ✅    |
-|    aarch64   |   ❌   |   ✅   |    ❌    |
+|    aarch64   |   ✅   |   ✅   |    ❌    |
 | powerpc{,64} |   ✅   |  N/A  |   N/A   |
 | powerpc64le  |   ❌   |  N/A  |   N/A   |
 |    riscv32   |   ❌   |  N/A  |   N/A   |
