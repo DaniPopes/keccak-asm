@@ -12,6 +12,8 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  # https://github.com/zff-team/zffmount/blob/master/.github/workflows/publish_binaries.yml
+  LLVM_MINGW: llvm-mingw-20240619-ucrt-ubuntu-20.04-x86_64
 
 jobs:
   test:
@@ -25,40 +27,40 @@ jobs:
           - host: ubuntu-latest
             target: aarch64-unknown-linux-gnu
             test: true
-          # TODO: arm
-          # - host: ubuntu-latest
-          #   target: arm-unknown-linux-gnueabi
-          #   test: true
-          # - host: ubuntu-latest
-          #   target: armv5te-unknown-linux-gnueabi
-          #   test: true
-          # - host: ubuntu-latest
-          #   target: armv7-unknown-linux-gnueabihf
-          #   test: true
+          - host: ubuntu-latest
+            target: arm-unknown-linux-gnueabi
+            test: true
+          - host: ubuntu-latest
+            target: armv5te-unknown-linux-gnueabi
+            test: true
+          - host: ubuntu-latest
+            target: armv7-unknown-linux-gnueabihf
+            test: true
+          - host: ubuntu-latest
+            target: armv7-linux-androideabi
+            test: true
           - host: ubuntu-latest
             target: powerpc-unknown-linux-gnu
             test: true
           - host: ubuntu-latest
             target: powerpc64-unknown-linux-gnu
             test: true
-          # TODO: failing tests
+          # TODO: Linker error `ABI version 1 is not compatible with ABI version 2 output`
           # - host: ubuntu-latest
           #   target: powerpc64le-unknown-linux-gnu
           #   test: true
-          # TODO: unrecognized opcodes (preprocessor?)
-          # - host: ubuntu-latest
-          #   target: mips-unknown-linux-gnu
-          #   test: true
-          #   tier3: true
-          # - host: ubuntu-latest
-          #   target: mipsel-unknown-linux-gnu
-          #   test: true
-          #   tier3: true
-          # TODO: unrecognized opcodes
-          # - host: ubuntu-latest
-          #   target: riscv32gc-unknown-linux-gnu
-          #   test: true
-          #   tier3: true
+          - host: ubuntu-latest
+            target: mips-unknown-linux-gnu
+            test: true
+            tier3: true
+          - host: ubuntu-latest
+            target: mipsel-unknown-linux-gnu
+            test: true
+            tier3: true
+          - host: ubuntu-latest
+            target: riscv32gc-unknown-linux-gnu
+            test: true
+            tier3: true
           - host: ubuntu-latest
             target: riscv64gc-unknown-linux-gnu
             test: true
@@ -78,7 +80,7 @@ jobs:
             test: true
           - host: macos-latest
             target: aarch64-apple-darwin
-            test: false
+            test: true
           # TODO: x86-patch
           # - host: macos-latest
           #   target: i686-apple-darwin
@@ -87,11 +89,9 @@ jobs:
           - host: windows-latest
             target: x86_64-pc-windows-gnu
             test: true
-          # TODO: bad syntax with both `coff` and `win`
-          # - host: windows-latest
-          #   target: aarch64-pc-windows-gnullvm
-          #   test: false
-          #   tier3: true
+          - host: ubuntu-latest
+            target: aarch64-pc-windows-gnullvm
+            test: false
           # TODO: x86-patch
           # - host: windows-latest
           #   target: i686-pc-windows-gnullvm
@@ -110,6 +110,12 @@ jobs:
       - uses: taiki-e/setup-cross-toolchain-action@v1
         with:
           target: ${{ matrix.target }}
+      - name: Install LLVM MinGW toolchain (Windows aarch64)
+        if: ${{ matrix.target == 'aarch64-pc-windows-gnullvm' }}
+        run: |
+          curl -L -o ${{ env.LLVM_MINGW }}.tar.xz https://github.com/mstorsjo/llvm-mingw/releases/download/20240619/${{ env.LLVM_MINGW }}.tar.xz
+          tar -xf ${{ env.LLVM_MINGW }}.tar.xz
+          echo "$GITHUB_WORKSPACE/${{ env.LLVM_MINGW }}/bin" >> $GITHUB_PATH
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
@@ -118,7 +124,7 @@ jobs:
         shell: bash
         run: |
           FLAGS=()
-          [ -n "${{ matrix.tier3 }}" ] && FLAGS+=(-Zbuild-std)
+          [ "${{ matrix.tier3 }}" == true ] && FLAGS+=(-Zbuild-std)
           [[ "${{ matrix.target }}" == mips* ]] && FLAGS+=(--release)
           cargo build --workspace --target ${{ matrix.target }} -vv "${FLAGS[@]}"
           cargo build --workspace --target ${{ matrix.target }} --all-targets -vv "${FLAGS[@]}"
@@ -179,9 +185,7 @@ jobs:
           cache-on-failure: true
       - run: cargo doc --workspace
         env:
-          RUSTDOCFLAGS:
-            --cfg docsrs -D warnings --show-type-layout --generate-link-to-definition
-            --enable-index-page -Zunstable-options
+          RUSTDOCFLAGS: --cfg docsrs -D warnings --show-type-layout --generate-link-to-definition --enable-index-page -Zunstable-options
       # - name: Deploy documentation
       #   uses: peaceiris/actions-gh-pages@v3
       #   if: github.event_name == 'push' && github.ref == 'refs/heads/master'
