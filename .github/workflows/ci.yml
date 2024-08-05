@@ -57,10 +57,11 @@ jobs:
             target: mipsel-unknown-linux-gnu
             test: true
             tier3: true
-          - host: ubuntu-latest
-            target: riscv32gc-unknown-linux-gnu
-            test: true
-            tier3: true
+          # TODO: 'unrecognized opcode `sllw`' after last update (#7)
+          # - host: ubuntu-latest
+          #   target: riscv32gc-unknown-linux-gnu
+          #   test: true
+          #   tier3: true
           - host: ubuntu-latest
             target: riscv64gc-unknown-linux-gnu
             test: true
