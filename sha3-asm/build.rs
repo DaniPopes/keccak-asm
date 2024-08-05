@@ -45,8 +45,7 @@ fn cryptogams_script(feature: impl Fn(&str) -> bool) -> &'static str {
 
     let target_arch = env("CARGO_CFG_TARGET_ARCH");
     match target_arch.as_str() {
-        // TODO: arm (?)
-        // "arm" => "cryptogams/arm/keccak1600-armv4.pl",
+        "arm" => "cryptogams/arm/keccak1600-armv4.pl",
         "aarch64" => "cryptogams/arm/keccak1600-armv8.pl",
         "x86" => {
             if in_ci() || feature("mmx") {
@@ -101,8 +100,10 @@ fn cryptogams_script_flavor(feature: impl Fn(&str) -> bool) -> Option<String> {
             _ if family == "unix" => Some("elf"),
             _ => None,
         },
+        "powerpc" => Some("linux32"),
+        "powerpc64" => Some("linux64"),
+        "powerpc64le" => Some("linux64le"),
         s if s.starts_with("mips") && s.contains("64") => Some("64"),
-        s if s.starts_with("powerpc") && s.contains("64") => Some("64"),
         s if s.starts_with("riscv") && s.contains("32") => Some("32"),
         s if s.starts_with("riscv") && s.contains("64") => Some("64"),
         _ => None,
