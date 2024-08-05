@@ -1,30 +1,27 @@
 use std::{env, fs, path::Path, process::Command};
 
 fn main() {
-    let target_features = maybe_env("CARGO_CFG_TARGET_FEATURE").unwrap_or_default();
-    let target_features = target_features.split(',').collect::<Vec<_>>();
-    eprintln!("target features: {target_features:?}");
-    let feature = |s: &str| target_features.iter().any(|&f| f == s);
+    let target = Target::from_env();
 
-    let script = cryptogams_script(feature);
+    let script = cryptogams_script(&target);
     eprintln!("selected cryptogams script: {script}");
     let src = Path::new(script).file_stem().unwrap().to_str().unwrap();
-    let sha3 = Path::new(&env("OUT_DIR")).join(format!("{src}.S"));
+    let ext = if target.is_msvc() { "asm" } else { "S" };
+    let sha3 = Path::new(&env("OUT_DIR")).join(format!("{src}.{ext}"));
     println!("cargo:rustc-env=SHA3_ASM_SRC={src}");
 
-    let flavor = cryptogams_script_flavor(feature);
+    let flavor = cryptogams_script_flavor(&target);
     eprintln!("selected cryptogams script flavor: {flavor:?}");
     run_perlasm(script, flavor.as_deref(), &sha3);
 
-    let target_arch = env("CARGO_CFG_TARGET_ARCH");
     let mut cc = cc::Build::new();
-    if is_any_arm(&target_arch) {
+    if target.is_any_arm() {
         cc.include("cryptogams/arm");
     }
     cc.file(sha3).compile("keccak");
 }
 
-fn cryptogams_script(feature: impl Fn(&str) -> bool) -> &'static str {
+fn cryptogams_script(target: &Target) -> &'static str {
     // Allow overriding the script path via an environment variable.
     if let Ok(script) = maybe_env("SHA3_ASM_SCRIPT") {
         eprintln!("cryptogams script overridden by environment variable");
@@ -46,26 +43,25 @@ fn cryptogams_script(feature: impl Fn(&str) -> bool) -> &'static str {
         return Box::leak(p.into_boxed_str());
     }
 
-    let target_arch = env("CARGO_CFG_TARGET_ARCH");
-    match target_arch.as_str() {
+    match target.arch.as_str() {
         "arm" => "cryptogams/arm/keccak1600-armv4.pl",
         "aarch64" => "cryptogams/arm/keccak1600-armv8.pl",
         "x86" => {
-            if in_ci() || feature("mmx") {
+            if in_ci() || target.has_feature("mmx") {
                 "cryptogams/x86/keccak1600-mmx.pl"
             } else {
                 panic!("x86 targets require MMX support")
             }
         }
         "x86_64" => {
-            if feature("avx512vl") {
+            if target.has_feature("avx512vl") {
                 "cryptogams/x86_64/keccak1600-avx512vl.pl"
             // These are obsolete, plain x86_64 implementation is faster:
             // https://github.com/DaniPopes/bench-keccak256
 
-            // } else if feature("avx512f") {
+            // } else if target.has_feature("avx512f") {
             //     "cryptogams/x86_64/keccak1600-avx512.pl"
-            // } else if feature("avx2") {
+            // } else if target.has_feature("avx2") {
             //     "cryptogams/x86_64/keccak1600-avx2.pl"
             } else {
                 "cryptogams/x86_64/keccak1600-x86_64.pl"
@@ -81,26 +77,28 @@ fn cryptogams_script(feature: impl Fn(&str) -> bool) -> &'static str {
     }
 }
 
-fn cryptogams_script_flavor(feature: impl Fn(&str) -> bool) -> Option<String> {
-    let os = env("CARGO_CFG_TARGET_OS");
-    let environ = env("CARGO_CFG_TARGET_ENV");
-    let family = env("CARGO_CFG_TARGET_FAMILY");
-    let target_arch = env("CARGO_CFG_TARGET_ARCH");
-    let mut flavor = match target_arch.as_str() {
-        s if is_any_arm(s) => match os.as_str() {
+fn cryptogams_script_flavor(target: &Target) -> Option<String> {
+    let mut flavor = match target.arch.as_str() {
+        "arm" => match target.os.as_str() {
+            "ios" | "macos" => Some("ios32"),
+            "windows" => Some(if target.is_msvc() { "win32" } else { "coff32" }),
+            "linux" => Some("linux32"),
+            _ => None,
+        },
+        "aarch64" => match target.os.as_str() {
             "ios" | "macos" => Some("ios64"),
-            "windows" => Some("coff64"),
+            "windows" => Some(if target.is_msvc() { "win64" } else { "coff64" }),
             "linux" => Some("linux64"),
             _ => None,
         },
-        "x86" => match os.as_str() {
+        "x86" => match target.os.as_str() {
             "windows" => Some("win32n"),
             _ => Some("elf"),
         },
-        "x86_64" => match os.as_str() {
+        "x86_64" => match target.os.as_str() {
             "macos" => Some("macosx"),
-            "windows" if environ == "gnu" => Some("mingw64"),
-            _ if family == "unix" => Some("elf"),
+            "windows" => Some(if target.is_msvc() { "masm" } else { "mingw64" }),
+            _ if target.family == "unix" => Some("elf"),
             _ => None,
         },
         "powerpc" => Some("linux32"),
@@ -114,7 +112,7 @@ fn cryptogams_script_flavor(feature: impl Fn(&str) -> bool) -> Option<String> {
     .map(String::from);
 
     if let Some(s) = &mut flavor {
-        if target_arch == "aarch64" && feature("sha3") {
+        if target.arch == "aarch64" && target.has_feature("sha3") {
             s.push_str("+sha3");
         }
     }
@@ -148,6 +146,42 @@ fn run_perlasm(path: &str, flavor: Option<&str>, to: &Path) {
     }
 }
 
+struct Target {
+    arch: String,
+    os: String,
+    env: String,
+    family: String,
+    features: Vec<String>,
+}
+
+impl Target {
+    fn from_env() -> Self {
+        Self {
+            arch: env("CARGO_CFG_TARGET_ARCH"),
+            os: env("CARGO_CFG_TARGET_OS"),
+            env: env("CARGO_CFG_TARGET_ENV"),
+            family: env("CARGO_CFG_TARGET_FAMILY"),
+            features: if let Ok(features) = maybe_env("CARGO_CFG_TARGET_FEATURE") {
+                features.split(',').map(Into::into).collect()
+            } else {
+                vec![]
+            },
+        }
+    }
+
+    fn is_any_arm(&self) -> bool {
+        self.arch.starts_with("arm") || self.arch.starts_with("aarch64")
+    }
+
+    fn is_msvc(&self) -> bool {
+        self.env == "msvc"
+    }
+
+    fn has_feature(&self, feature: &str) -> bool {
+        self.features.iter().any(|f| f == feature)
+    }
+}
+
 #[track_caller]
 fn env(s: &str) -> String {
     maybe_env(s).unwrap()
@@ -160,8 +194,4 @@ fn in_ci() -> bool {
 fn maybe_env(s: &str) -> Result<String, env::VarError> {
     println!("cargo:rerun-if-env-changed={s}");
     env::var(s)
-}
-
-fn is_any_arm(s: &str) -> bool {
-    s.starts_with("arm") || s.starts_with("aarch64")
 }
