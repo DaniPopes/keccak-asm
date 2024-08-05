@@ -17,7 +17,7 @@ env:
 
 jobs:
   test:
-    name: test ${{ matrix.target }}
+    name: ${{ matrix.test && 'test' || 'build' }} ${{ matrix.target }}
     runs-on: ${{ matrix.host }}
     timeout-minutes: 30
     strategy:
@@ -87,6 +87,12 @@ jobs:
           #   target: i686-apple-darwin
           #   test: false
 
+          - host: windows-latest
+            target: x86_64-pc-windows-msvc
+            test: true
+          - host: windows-latest
+            target: aarch64-pc-windows-msvc
+            test: false
           - host: windows-latest
             target: x86_64-pc-windows-gnu
             test: true

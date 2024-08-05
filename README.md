@@ -24,10 +24,7 @@ Forked from OpenSSL, [Cryptogams](https://github.com/dot-asm/cryptogams), and [R
 - ❌: Currently not supported.
 - 🟨: Compiles, but is only built, not tested in CI. Should still work normally.
 - ✅: Fully supported, with full CI coverage for the most popular target triples,
-      e.g. `x86_64-unknown-linux-gnu`, `aarch64-apple-darwin`
-
-Extra notes:
-- The MSVC toolchain is not supported, so only `gnu` and `gnullvm` targets will compile.
+      e.g. `x86_64-unknown-linux-gnu`, `aarch64-apple-darwin`, `x86_64-pc-windows-msvc`.
 
 ## License
 
