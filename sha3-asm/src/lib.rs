@@ -29,7 +29,7 @@ extern "C" {
     /// C signature:
     ///
     /// ```c
-    /// pub fn SHA3_squeeze(uint64_t A[5][5], unsigned char *out, size_t len, size_t r);
+    /// void SHA3_squeeze(uint64_t A[5][5], unsigned char *out, size_t len, size_t r);
     /// ```
     pub fn SHA3_squeeze(a: *mut Buffer, out: *mut u8, len: usize, r: usize);
 }
