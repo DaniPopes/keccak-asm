@@ -14,29 +14,46 @@ fn main() {
     eprintln!("selected cryptogams script flavor: {flavor:?}");
     run_perlasm(script, flavor.as_deref(), &sha3);
 
+    // MSVC's provided arm assembler does not support -D, only allowing PreDefine to be used.
+    // Unfortunately these are subtly different from -D, making them difficult to use when there
+    // might be symbol conflicts.
+    //
+    // Instead, we will do a find/replace on the assembly here.
+    if target.is_msvc() && target.is_any_arm() {
+        let assembly = fs::read_to_string(&sha3).unwrap();
+        let new_assembly = assembly
+            .replace("SHA3_absorb", "KECCAK_ASM_SHA3_absorb")
+            .replace("SHA3_squeeze", "KECCAK_ASM_SHA3_squeeze");
+
+        fs::write(&sha3, &new_assembly).unwrap()
+    }
+
     let mut cc = cc::Build::new();
     if target.is_any_arm() {
         cc.include("cryptogams/arm");
     }
 
-    let preprocessor_def_flag = if target.is_msvc() { "/D" } else { "-D" };
     let preprocessor_renames = [
-        "_SHA3_squeeze=_KECCAK_ASM_SHA3_squeeze",
-        "_SHA3_absorb=_KECCAK_ASM_SHA3_absorb",
-        "_SHA3_squeeze_cext=_KECCAK_ASM_SHA3_squeeze_cext",
-        "_SHA3_absorb_cext=_KECCAK_ASM_SHA3_absorb_cext",
-        "SHA3_squeeze=KECCAK_ASM_SHA3_squeeze",
-        "SHA3_absorb=KECCAK_ASM_SHA3_absorb",
-        "SHA3_squeeze_cext=KECCAK_ASM_SHA3_squeeze_cext",
-        "SHA3_absorb_cext=KECCAK_ASM_SHA3_absorb_cext",
+        ("SHA3_squeeze_cext", "KECCAK_ASM_SHA3_squeeze_cext"),
+        ("SHA3_absorb_cext", "KECCAK_ASM_SHA3_absorb_cext"),
+        ("SHA3_squeeze", "KECCAK_ASM_SHA3_squeeze"),
+        ("SHA3_absorb", "KECCAK_ASM_SHA3_absorb"),
+        ("_SHA3_squeeze", "_KECCAK_ASM_SHA3_squeeze"),
+        ("_SHA3_absorb", "_KECCAK_ASM_SHA3_absorb"),
+        ("_SHA3_squeeze_cext", "_KECCAK_ASM_SHA3_squeeze_cext"),
+        ("_SHA3_absorb_cext", "_KECCAK_ASM_SHA3_absorb_cext"),
     ];
 
-    let mut build = cc.file(sha3);
-    for rename in preprocessor_renames {
-        build = build.flag(preprocessor_def_flag).flag(rename)
+    cc.file(sha3);
+
+    // we do not want to define anything for msvc + arm
+    if !target.is_msvc() || !target.is_any_arm() {
+        for (var, val) in preprocessor_renames {
+            cc.define(var, val);
+        }
     }
 
-    build.compile("keccak");
+    cc.compile("keccak");
 }
 
 fn cryptogams_script(target: &Target) -> &'static str {

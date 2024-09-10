@@ -14,6 +14,7 @@ env:
   CARGO_TERM_COLOR: always
   # https://github.com/zff-team/zffmount/blob/master/.github/workflows/publish_binaries.yml
   LLVM_MINGW: llvm-mingw-20240619-ucrt-ubuntu-20.04-x86_64
+  CC_ENABLE_DEBUG_OUTPUT: true
 
 jobs:
   test:
