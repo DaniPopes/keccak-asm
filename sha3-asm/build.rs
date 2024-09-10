@@ -18,7 +18,47 @@ fn main() {
     if target.is_any_arm() {
         cc.include("cryptogams/arm");
     }
-    cc.file(sha3).compile("keccak");
+
+    // We need to rename symbols, because if a dependency brings in openssl, the linker may detect
+    // `libcrypto.a`, which ships the same symbol names as cryptogams. This is not ideal, because
+    // while openssl-sys does not expose these functions, and some of these symbols are private and
+    // not meant for bindings, they are still shipped in `libcrypto.a`. If imports are in the wrong
+    // order, the linker would detect these and link to our interface. This can lead to incorrect
+    // hash results.
+    //
+    // Instead, we rename the symbols with a prefix, so that the symbols do not conflict.
+    let symbol_prefix = "KECCAK_ASM";
+    let preprocessor_renames = ["SHA3_squeeze", "SHA3_absorb"];
+
+    cc.file(&sha3);
+
+    // MSVC's provided arm assembler does not support -D, only allowing PreDefine to be used.
+    // Unfortunately these are subtly different from -D, making them difficult to use when there
+    // might be symbol conflicts.
+    //
+    // Instead, we will do a find/replace on the assembly here.
+    if target.is_msvc() && target.is_any_arm() {
+        let mut assembly = fs::read_to_string(&sha3).unwrap();
+        for symbol in preprocessor_renames {
+            assembly = assembly.replace(symbol, &format!("{symbol_prefix}_{symbol}"));
+        }
+
+        fs::write(&sha3, &assembly).unwrap()
+    } else {
+        // we do not want to define anything for msvc + arm
+        for symbol in preprocessor_renames {
+            // symbols with a _cext suffix are also shared
+            let symbol_cext = format!("{symbol}_cext");
+            for symbol in [symbol, &symbol_cext] {
+                // sometimes the symbols have underscores
+                cc.define(&format!("_{symbol}"), format!("_{symbol_prefix}_{symbol}").as_str());
+                // and sometimes they do not
+                cc.define(symbol, format!("{symbol_prefix}_{symbol}").as_str());
+            }
+        }
+    }
+
+    cc.compile("keccak");
 }
 
 fn cryptogams_script(target: &Target) -> &'static str {
