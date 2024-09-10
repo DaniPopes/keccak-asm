@@ -27,7 +27,7 @@ fn main() {
     // hash results.
     //
     // Instead, we rename the symbols with a prefix, so that the symbols do not conflict.
-    let symbol_prefix = "KECCAK_ASM_";
+    let symbol_prefix = "KECCAK_ASM";
     let preprocessor_renames = ["SHA3_squeeze", "SHA3_absorb"];
 
     cc.file(&sha3);
@@ -40,7 +40,7 @@ fn main() {
     if target.is_msvc() && target.is_any_arm() {
         let mut assembly = fs::read_to_string(&sha3).unwrap();
         for symbol in preprocessor_renames {
-            assembly = assembly.replace(symbol, &format!("{symbol_prefix}{symbol}"));
+            assembly = assembly.replace(symbol, &format!("{symbol_prefix}_{symbol}"));
         }
 
         fs::write(&sha3, &assembly).unwrap()
@@ -51,9 +51,9 @@ fn main() {
             let symbol_cext = format!("{symbol}_cext");
             for symbol in [symbol, &symbol_cext] {
                 // sometimes the symbols have underscores
-                cc.define(&format!("_{symbol}"), format!("_{symbol_prefix}{symbol}").as_str());
+                cc.define(&format!("_{symbol}"), format!("_{symbol_prefix}_{symbol}").as_str());
                 // and sometimes they do not
-                cc.define(symbol, format!("{symbol_prefix}{symbol}").as_str());
+                cc.define(symbol, format!("{symbol_prefix}_{symbol}").as_str());
             }
         }
     }
