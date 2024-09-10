@@ -1,5 +1,5 @@
 use core::{mem::MaybeUninit, ptr};
-use sha3_asm::{Buffer, KECCAK_ASM_SHA3_absorb, KECCAK_ASM_SHA3_squeeze};
+use sha3_asm::{Buffer, SHA3_absorb, SHA3_squeeze};
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -89,11 +89,11 @@ impl<const BITS: usize, const PAD: u8> Sha3State<BITS, PAD> {
             // Update the input pointer
             inp = inp.add(rem);
             len -= rem;
-            KECCAK_ASM_SHA3_absorb(&mut self.A, self.buf(), bsz, bsz);
+            SHA3_absorb(&mut self.A, self.buf(), bsz, bsz);
             self.bufsz = 0;
         }
         // Absorb the input - rem = leftover part of the input < blocksize)
-        rem = if len >= bsz { KECCAK_ASM_SHA3_absorb(&mut self.A, inp, len, bsz) } else { len };
+        rem = if len >= bsz { SHA3_absorb(&mut self.A, inp, len, bsz) } else { len };
         // Copy the leftover bit of the input into the buffer
         if rem > 0 {
             memcpy(self.buf(), inp.add(len).sub(rem), rem);
@@ -119,9 +119,9 @@ impl<const BITS: usize, const PAD: u8> Sha3State<BITS, PAD> {
         *self.buf().add(num) = PAD;
         *self.buf().add(bsz - 1) |= 0x80;
 
-        KECCAK_ASM_SHA3_absorb(&mut self.A, self.buf(), bsz, bsz);
+        SHA3_absorb(&mut self.A, self.buf(), bsz, bsz);
 
-        KECCAK_ASM_SHA3_squeeze(&mut self.A, out, Self::OUT_SIZE, bsz);
+        SHA3_squeeze(&mut self.A, out, Self::OUT_SIZE, bsz);
     }
 
     #[inline(always)]
