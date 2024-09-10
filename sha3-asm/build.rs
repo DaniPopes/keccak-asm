@@ -20,8 +20,6 @@ fn main() {
     }
 
     let preprocessor_def_flag = if target.is_msvc() { "/D" } else { "-D" };
-    let is_preprocessor_flag_supported = cc.is_flag_supported(preprocessor_def_flag);
-    eprintln!("is preprocessor flag supported: {is_preprocessor_flag_supported:?}");
     let preprocessor_renames = [
         "_SHA3_squeeze=_KECCAK_ASM_SHA3_squeeze",
         "_SHA3_absorb=_KECCAK_ASM_SHA3_absorb",
