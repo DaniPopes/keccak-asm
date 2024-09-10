@@ -224,7 +224,7 @@ impl Target {
 
 #[track_caller]
 fn env(s: &str) -> String {
-    maybe_env(s).unwrap()
+    maybe_env(s).expect(s)
 }
 
 fn in_ci() -> bool {
