@@ -18,7 +18,12 @@ fn main() {
     if target.is_any_arm() {
         cc.include("cryptogams/arm");
     }
-    cc.file(sha3).compile("keccak");
+    cc.file(sha3)
+        .flag("-D").flag("_SHA3_squeeze=_KECCAK_ASM_SHA3_squeeze")
+        .flag("-D").flag("_SHA3_absorb=_KECCAK_ASM_SHA3_absorb")
+        .flag("-D").flag("_SHA3_squeeze_cext=_KECCAK_ASM_SHA3_squeeze_cext")
+        .flag("-D").flag("_SHA3_absorb_cext=_KECCAK_ASM_SHA3_absorb_cext")
+        .compile("keccak");
 }
 
 fn cryptogams_script(target: &Target) -> &'static str {
