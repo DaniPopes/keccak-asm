@@ -19,7 +19,7 @@ fn main() {
         cc.include("cryptogams/arm");
     }
 
-    let preprocessor_def_flag = if target.is_msvc() { r"\D" } else { "-D" };
+    let preprocessor_def_flag = if target.is_msvc() { "/D" } else { "-D" };
     let preprocessor_renames = [
         "_SHA3_squeeze=_KECCAK_ASM_SHA3_squeeze",
         "_SHA3_absorb=_KECCAK_ASM_SHA3_absorb",
