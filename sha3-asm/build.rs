@@ -28,8 +28,7 @@ fn main() {
     //
     // Instead, we rename the symbols with a prefix, so that the symbols do not conflict.
     let symbol_prefix = "KECCAK_ASM_";
-    let preprocessor_renames =
-        ["SHA3_squeeze_cext", "SHA3_absorb_cext", "SHA3_squeeze", "SHA3_absorb"];
+    let preprocessor_renames = ["SHA3_squeeze", "SHA3_absorb"];
 
     cc.file(&sha3);
 
@@ -39,19 +38,23 @@ fn main() {
     //
     // Instead, we will do a find/replace on the assembly here.
     if target.is_msvc() && target.is_any_arm() {
-        let assembly = fs::read_to_string(&sha3).unwrap();
-        let new_assembly = assembly
-            .replace("SHA3_absorb", "KECCAK_ASM_SHA3_absorb")
-            .replace("SHA3_squeeze", "KECCAK_ASM_SHA3_squeeze");
+        let mut assembly = fs::read_to_string(&sha3).unwrap();
+        for symbol in preprocessor_renames {
+            assembly = assembly.replace(symbol, &format!("{symbol_prefix}{symbol}"));
+        }
 
-        fs::write(&sha3, &new_assembly).unwrap()
+        fs::write(&sha3, &assembly).unwrap()
     } else {
         // we do not want to define anything for msvc + arm
         for symbol in preprocessor_renames {
-            // sometimes the symbols have underscores
-            cc.define(&format!("_{symbol}"), format!("_{symbol_prefix}{symbol}").as_str());
-            // and sometimes they do not
-            cc.define(symbol, format!("{symbol_prefix}{symbol}").as_str());
+            // symbols with a _cext suffix are also shared
+            let symbol_cext = format!("{symbol}_cext");
+            for symbol in [symbol, &symbol_cext] {
+                // sometimes the symbols have underscores
+                cc.define(&format!("_{symbol}"), format!("_{symbol_prefix}{symbol}").as_str());
+                // and sometimes they do not
+                cc.define(symbol, format!("{symbol_prefix}{symbol}").as_str());
+            }
         }
     }
 
