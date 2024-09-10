@@ -27,6 +27,14 @@ fn main() {
         .flag("_SHA3_squeeze_cext=_KECCAK_ASM_SHA3_squeeze_cext")
         .flag("-D")
         .flag("_SHA3_absorb_cext=_KECCAK_ASM_SHA3_absorb_cext")
+        .flag("-D")
+        .flag("SHA3_squeeze=KECCAK_ASM_SHA3_squeeze")
+        .flag("-D")
+        .flag("SHA3_absorb=KECCAK_ASM_SHA3_absorb")
+        .flag("-D")
+        .flag("SHA3_squeeze_cext=KECCAK_ASM_SHA3_squeeze_cext")
+        .flag("-D")
+        .flag("SHA3_absorb_cext=KECCAK_ASM_SHA3_absorb_cext")
         .compile("keccak");
 }
 
