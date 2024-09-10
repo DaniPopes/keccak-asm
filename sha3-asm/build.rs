@@ -18,22 +18,25 @@ fn main() {
     if target.is_any_arm() {
         cc.include("cryptogams/arm");
     }
+
+    let preprocessor_def_flag = if target.is_msvc() { r"\D" } else { "-D" };
+
     cc.file(sha3)
-        .flag("-D")
+        .flag(preprocessor_def_flag)
         .flag("_SHA3_squeeze=_KECCAK_ASM_SHA3_squeeze")
-        .flag("-D")
+        .flag(preprocessor_def_flag)
         .flag("_SHA3_absorb=_KECCAK_ASM_SHA3_absorb")
-        .flag("-D")
+        .flag(preprocessor_def_flag)
         .flag("_SHA3_squeeze_cext=_KECCAK_ASM_SHA3_squeeze_cext")
-        .flag("-D")
+        .flag(preprocessor_def_flag)
         .flag("_SHA3_absorb_cext=_KECCAK_ASM_SHA3_absorb_cext")
-        .flag("-D")
+        .flag(preprocessor_def_flag)
         .flag("SHA3_squeeze=KECCAK_ASM_SHA3_squeeze")
-        .flag("-D")
+        .flag(preprocessor_def_flag)
         .flag("SHA3_absorb=KECCAK_ASM_SHA3_absorb")
-        .flag("-D")
+        .flag(preprocessor_def_flag)
         .flag("SHA3_squeeze_cext=KECCAK_ASM_SHA3_squeeze_cext")
-        .flag("-D")
+        .flag(preprocessor_def_flag)
         .flag("SHA3_absorb_cext=KECCAK_ASM_SHA3_absorb_cext")
         .compile("keccak");
 }
