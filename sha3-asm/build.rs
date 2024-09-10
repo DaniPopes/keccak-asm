@@ -14,6 +14,25 @@ fn main() {
     eprintln!("selected cryptogams script flavor: {flavor:?}");
     run_perlasm(script, flavor.as_deref(), &sha3);
 
+    let mut cc = cc::Build::new();
+    if target.is_any_arm() {
+        cc.include("cryptogams/arm");
+    }
+
+    // We need to rename symbols, because if a dependency brings in openssl, the linker may detect
+    // `libcrypto.a`, which ships the same symbol names as cryptogams. This is not ideal, because
+    // while openssl-sys does not expose these functions, and some of these symbols are private and
+    // not meant for bindings, they are still shipped in `libcrypto.a`. If imports are in the wrong
+    // order, the linker would detect these and link to our interface. This can lead to incorrect
+    // hash results.
+    //
+    // Instead, we rename the symbols with a prefix, so that the symbols do not conflict.
+    let symbol_prefix = "KECCAK_ASM_";
+    let preprocessor_renames =
+        ["SHA3_squeeze_cext", "SHA3_absorb_cext", "SHA3_squeeze", "SHA3_absorb"];
+
+    cc.file(&sha3);
+
     // MSVC's provided arm assembler does not support -D, only allowing PreDefine to be used.
     // Unfortunately these are subtly different from -D, making them difficult to use when there
     // might be symbol conflicts.
@@ -26,30 +45,13 @@ fn main() {
             .replace("SHA3_squeeze", "KECCAK_ASM_SHA3_squeeze");
 
         fs::write(&sha3, &new_assembly).unwrap()
-    }
-
-    let mut cc = cc::Build::new();
-    if target.is_any_arm() {
-        cc.include("cryptogams/arm");
-    }
-
-    let preprocessor_renames = [
-        ("SHA3_squeeze_cext", "KECCAK_ASM_SHA3_squeeze_cext"),
-        ("SHA3_absorb_cext", "KECCAK_ASM_SHA3_absorb_cext"),
-        ("SHA3_squeeze", "KECCAK_ASM_SHA3_squeeze"),
-        ("SHA3_absorb", "KECCAK_ASM_SHA3_absorb"),
-        ("_SHA3_squeeze", "_KECCAK_ASM_SHA3_squeeze"),
-        ("_SHA3_absorb", "_KECCAK_ASM_SHA3_absorb"),
-        ("_SHA3_squeeze_cext", "_KECCAK_ASM_SHA3_squeeze_cext"),
-        ("_SHA3_absorb_cext", "_KECCAK_ASM_SHA3_absorb_cext"),
-    ];
-
-    cc.file(sha3);
-
-    // we do not want to define anything for msvc + arm
-    if !target.is_msvc() || !target.is_any_arm() {
-        for (var, val) in preprocessor_renames {
-            cc.define(var, val);
+    } else {
+        // we do not want to define anything for msvc + arm
+        for symbol in preprocessor_renames {
+            // sometimes the symbols have underscores
+            cc.define(&format!("_{symbol}"), format!("_{symbol_prefix}{symbol}").as_str());
+            // and sometimes they do not
+            cc.define(symbol, format!("{symbol_prefix}{symbol}").as_str());
         }
     }
 
