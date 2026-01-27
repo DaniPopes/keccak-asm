@@ -45,12 +45,7 @@ impl<const BITS: usize, const PAD: u8> Sha3State<BITS, PAD> {
 
     #[inline(always)]
     pub(crate) fn new() -> Self {
-        Self {
-            A: [0; 25],
-            bufsz: 0,
-            // TODO: MaybeUninit::uninit_array() is safe but unstable
-            buf: unsafe { MaybeUninit::uninit().assume_init() },
-        }
+        Self { A: [0; 25], bufsz: 0, buf: unsafe { MaybeUninit::uninit().assume_init() } }
     }
 
     #[inline(always)]

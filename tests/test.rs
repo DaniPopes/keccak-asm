@@ -14,22 +14,19 @@ new_test!(sha3_256, "sha3_256", keccak_asm::Sha3_256, fixed_reset_test);
 new_test!(sha3_384, "sha3_384", keccak_asm::Sha3_384, fixed_reset_test);
 new_test!(sha3_512, "sha3_512", keccak_asm::Sha3_512, fixed_reset_test);
 
-#[track_caller]
-fn test_hasher<D: digest::Digest>(input: &str, expected: &str) {
-    let mut hasher = D::new();
-    hasher.update(input.as_bytes());
-    let result = hasher.finalize();
-    assert_eq!(hex::encode(result), expected);
-}
-
 #[test]
 fn sanity() {
-    test_hasher::<keccak_asm::Keccak256>(
-        "testFoo()",
-        "79adbd5094e60c1bc2b963678ff44695d1430b8ccff0b1cd57c03a7f63567822",
-    );
-    test_hasher::<keccak_asm::Keccak256>(
-        "test_Foo()",
-        "45c48c2bd4afc6adc7884fe296b9af10e234ddbc44f2f99f40cfb8b6391e9798",
-    );
+    use digest::Digest;
+    type D = keccak_asm::Keccak256;
+
+    fn test_hasher(input: &str, expected: &str) {
+        let mut hasher = D::new();
+        hasher.update(input.as_bytes());
+        let result = hasher.finalize();
+        assert_eq!(hex::encode(result), expected);
+
+        assert_eq!(hex::encode(D::digest(input)), expected);
+    }
+    test_hasher("testFoo()", "79adbd5094e60c1bc2b963678ff44695d1430b8ccff0b1cd57c03a7f63567822");
+    test_hasher("test_Foo()", "45c48c2bd4afc6adc7884fe296b9af10e234ddbc44f2f99f40cfb8b6391e9798");
 }
