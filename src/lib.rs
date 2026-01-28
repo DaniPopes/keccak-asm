@@ -2,6 +2,7 @@
 #![no_std]
 #![warn(missing_docs, rust_2018_idioms)]
 #![allow(rustdoc::broken_intra_doc_links)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub use digest::{self, Digest};
 
