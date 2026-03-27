@@ -1,0 +1,99 @@
+--- a/keccak1600-avx512vl.pl	2026-03-27 01:34:31.290316983 +0100
++++ b/keccak1600-avx512vl.pl	2026-03-27 01:35:44.384511034 +0100
+@@ -28,6 +28,18 @@
+ # (*)	Corresponds to SHA3-256. Percentage after slash is improvement
+ #	coefficient in comparison to scalar keccak1600-x86_64.pl.
+ 
++$flavour = shift;
++$output  = shift;
++if ($flavour =~ /\./) { $output = $flavour; undef $flavour; }
++
++$0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
++( $xlate="${dir}x86_64-xlate.pl" and -f $xlate ) or
++( $xlate="${dir}../../perlasm/x86_64-xlate.pl" and -f $xlate) or
++die "can't locate x86_64-xlate.pl";
++
++open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
++*STDOUT=*OUT;
++
+ # Digits in variables' names denote right-most coordinates:
+ 
+ my ($A00,	# [0][0] [0][0] [0][0] [0][0]		# %ymm0
+@@ -58,6 +70,7 @@
+ .type	__KeccakF1600,\@function
+ .align	32
+ __KeccakF1600:
++.cfi_startproc
+ 	lea		iotas(%rip),%r10
+ 	mov		\$24,%eax
+ 	jmp		.Loop_avx512vl
+@@ -174,6 +187,7 @@
+ 	jnz		.Loop_avx512vl
+ 
+ 	ret
++.cfi_endproc
+ .size	__KeccakF1600,.-__KeccakF1600
+ ___
+ my ($A_flat,$inp,$len,$bsz) = ("%rdi","%rsi","%rdx","%rcx");
+@@ -181,9 +195,14 @@
+ 
+ $code.=<<___;
+ .globl	SHA3_absorb
+-.type	SHA3_absorb,\@function
++.type	SHA3_absorb,\@function,4
+ .align	32
+ SHA3_absorb:
++.cfi_startproc
++	push	%rbp
++.cfi_push	%rbp
++	mov	%rsp,%rbp
++.cfi_def_cfa_register	%rbp
+ 	mov	%rsp,%r11
+ 
+ 	lea	-240(%rsp),%rsp
+@@ -266,13 +285,22 @@
+ 
+ 	lea	(%r11),%rsp
+ 	lea	($len,$bsz),%rax		# return value
++	pop	%rbp
++.cfi_restore	%rbp
++.cfi_def_cfa	%rsp,8
+ 	ret
++.cfi_endproc
+ .size	SHA3_absorb,.-SHA3_absorb
+ 
+ .globl	SHA3_squeeze
+-.type	SHA3_squeeze,\@function
++.type	SHA3_squeeze,\@function,4
+ .align	32
+ SHA3_squeeze:
++.cfi_startproc
++	push	%rbp
++.cfi_push	%rbp
++	mov	%rsp,%rbp
++.cfi_def_cfa_register	%rbp
+ 	mov	%rsp,%r11
+ 
+ 	lea	96($A_flat),$A_flat
+@@ -343,7 +371,11 @@
+ 	vzeroupper
+ 
+ 	lea	(%r11),%rsp
++	pop	%rbp
++.cfi_restore	%rbp
++.cfi_def_cfa	%rsp,8
+ 	ret
++.cfi_endproc
+ .size	SHA3_squeeze,.-SHA3_squeeze
+ 
+ .align	64
+@@ -383,5 +415,8 @@
+ .asciz	"Keccak-1600 absorb and squeeze for AVX512VL, CRYPTOGAMS by <appro\@openssl.org>"
+ ___
+ 
+-print $code;
++foreach (split("\n",$code)) {
++	print $_, "\n";
++}
++
+ close STDOUT;

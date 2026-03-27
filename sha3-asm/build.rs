@@ -1,18 +1,19 @@
-use std::{env, fs, path::Path, process::Command};
+use std::{borrow::Cow, env, fs, path::Path, process::Command};
 
 fn main() {
     let target = Target::from_env();
 
     let script = cryptogams_script(&target);
     eprintln!("selected cryptogams script: {script}");
-    let src = Path::new(script).file_stem().unwrap().to_str().unwrap();
+    let script = maybe_patch_script(script);
+    let src = Path::new(script.as_ref()).file_stem().unwrap().to_str().unwrap();
     let ext = if target.is_msvc() { "asm" } else { "S" };
     let sha3 = Path::new(&env("OUT_DIR")).join(format!("{src}.{ext}"));
     println!("cargo:rustc-env=SHA3_ASM_SRC={src}");
 
     let flavor = cryptogams_script_flavor(&target);
     eprintln!("selected cryptogams script flavor: {flavor:?}");
-    run_perlasm(script, flavor.as_deref(), &sha3);
+    run_perlasm(&script, flavor.as_deref(), &sha3);
 
     let mut cc = cc::Build::new();
     if target.is_any_arm() {
@@ -158,6 +159,78 @@ fn cryptogams_script_flavor(target: &Target) -> Option<String> {
     }
 
     flavor
+}
+
+fn maybe_patch_script<'a>(script: &'a str) -> Cow<'a, str> {
+    let script_path = Path::new(script);
+    let script_name = script_path.file_name().unwrap().to_str().unwrap();
+
+    let patches_dir = Path::new("patches");
+    if !patches_dir.is_dir() {
+        return Cow::Borrowed(script);
+    }
+
+    let mut patches: Vec<_> = fs::read_dir(patches_dir)
+        .unwrap()
+        .filter_map(|e| {
+            let e = e.unwrap();
+            let name = e.file_name();
+            let name = name.to_str().unwrap();
+            if name.ends_with(".patch")
+                && name.contains(script_path.file_stem().unwrap().to_str().unwrap())
+            {
+                Some(e.path())
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    if patches.is_empty() {
+        return Cow::Borrowed(script);
+    }
+
+    patches.sort();
+    for patch in &patches {
+        println!("cargo:rerun-if-changed={}", patch.display());
+    }
+
+    let out_dir = env("OUT_DIR");
+    let patched = Path::new(&out_dir).join(script_name);
+    fs::copy(script, &patched).unwrap();
+
+    // Symlink sibling files (e.g. x86_64-xlate.pl) so patched scripts can find them.
+    if let Some(script_dir) = script_path.parent() {
+        let script_dir = env::current_dir().unwrap().join(script_dir);
+        for entry in fs::read_dir(&script_dir).unwrap() {
+            let entry = entry.unwrap();
+            let name = entry.file_name();
+            if name == script_name {
+                continue;
+            }
+            let dest = Path::new(&out_dir).join(&name);
+            if !dest.exists() {
+                #[cfg(unix)]
+                std::os::unix::fs::symlink(entry.path(), &dest).ok();
+                #[cfg(windows)]
+                fs::copy(entry.path(), &dest).ok();
+            }
+        }
+    }
+
+    for patch in &patches {
+        eprintln!("applying patch: {}", patch.display());
+        let out = Command::new("patch")
+            .arg("--no-backup-if-mismatch")
+            .arg(patched.to_str().unwrap())
+            .arg(patch.to_str().unwrap())
+            .output()
+            .expect("could not execute `patch`");
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        assert!(out.status.success(), "patch {} failed:\n{stderr}", patch.display());
+    }
+
+    Cow::Owned(patched.to_str().unwrap().to_string())
 }
 
 fn run_perlasm(path: &str, flavor: Option<&str>, to: &Path) {
