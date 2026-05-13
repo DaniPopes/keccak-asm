@@ -126,6 +126,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
+          cache-bin: false
       - name: build
         if: ${{ !matrix.test }}
         shell: bash
@@ -157,6 +158,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
+          cache-bin: false
       - run: cargo build --workspace
         env:
           RUSTFLAGS: -Dwarnings
@@ -172,6 +174,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
+          cache-bin: false
       - run: cargo clippy --workspace --all-targets
         env:
           RUSTFLAGS: -Dwarnings
@@ -190,6 +193,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
+          cache-bin: false
       - run: cargo doc --workspace --all-features --no-deps --document-private-items
         env:
           RUSTDOCFLAGS: --cfg docsrs -D warnings --show-type-layout --generate-link-to-definition --enable-index-page -Zunstable-options
