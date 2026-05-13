@@ -111,9 +111,11 @@ fn cryptogams_script(target: &Target) -> &'static str {
             }
         }
         "x86_64" => {
-            if target.has_feature("apxf") {
-                "cryptogams/x86_64/keccak1600-apx.pl"
-            } else if target.has_feature("avx512vl") {
+            // TODO: OpenSSL has not enabled this yet.
+            // if target.has_feature("apxf") {
+            //     "cryptogams/x86_64/keccak1600-apx.pl"
+            // } else
+            if target.has_feature("avx512vl") {
                 "cryptogams/x86_64/keccak1600-avx512vl.pl"
             // These are obsolete, plain x86_64 implementation is faster:
             // https://github.com/DaniPopes/bench-keccak256
