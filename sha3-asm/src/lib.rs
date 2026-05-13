@@ -20,7 +20,14 @@ extern "C" {
     /// size_t SHA3_absorb(uint64_t A[5][5], const unsigned char *inp, size_t len,
     ///                    size_t r);
     /// ```
-    #[link_name = "KECCAK_ASM_SHA3_absorb"]
+    #[cfg_attr(
+        all(target_arch = "aarch64", target_feature = "sha3"),
+        link_name = "KECCAK_ASM_SHA3_absorb_cext"
+    )]
+    #[cfg_attr(
+        not(all(target_arch = "aarch64", target_feature = "sha3")),
+        link_name = "KECCAK_ASM_SHA3_absorb"
+    )]
     pub fn SHA3_absorb(a: *mut Buffer, inp: *const u8, len: usize, r: usize) -> usize;
 
     /// SHA-3 squeeze, defined in assembly.
@@ -32,7 +39,14 @@ extern "C" {
     /// ```c
     /// void SHA3_squeeze(uint64_t A[5][5], unsigned char *out, size_t len, size_t r);
     /// ```
-    #[link_name = "KECCAK_ASM_SHA3_squeeze"]
+    #[cfg_attr(
+        all(target_arch = "aarch64", target_feature = "sha3"),
+        link_name = "KECCAK_ASM_SHA3_squeeze_cext"
+    )]
+    #[cfg_attr(
+        not(all(target_arch = "aarch64", target_feature = "sha3")),
+        link_name = "KECCAK_ASM_SHA3_squeeze"
+    )]
     pub fn SHA3_squeeze(a: *mut Buffer, out: *mut u8, len: usize, r: usize);
 }
 
