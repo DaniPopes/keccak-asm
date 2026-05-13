@@ -74,14 +74,7 @@ fn link_name(target: &Target, prefix: &str, symbol: &str) -> String {
     // OpenSSL only wires the ARM SHA3 cext absorb symbol because its squeeze
     // path uses a newer five-argument ABI. These cryptogams sources expose the
     // old four-argument ABI, so both cext symbols match our direct bindings.
-    let suffix = if matches!(symbol, "SHA3_absorb" | "SHA3_squeeze")
-        && target.arch == "aarch64"
-        && target.has_feature("sha3")
-    {
-        "_cext"
-    } else {
-        ""
-    };
+    let suffix = if target.arch == "aarch64" && target.has_feature("sha3") { "_cext" } else { "" };
     format!("{prefix}_{symbol}{suffix}")
 }
 
