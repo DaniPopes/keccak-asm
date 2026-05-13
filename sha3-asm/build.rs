@@ -11,6 +11,16 @@ fn main() {
     let sha3 = Path::new(&env("OUT_DIR")).join(format!("{src}.{ext}"));
     println!("cargo:rustc-env=SHA3_ASM_SRC={src}");
 
+    let symbol_prefix = "KECCAK_ASM";
+    println!(
+        "cargo:rustc-env=SHA3_ASM_ABSORB={}",
+        link_name(&target, symbol_prefix, "SHA3_absorb")
+    );
+    println!(
+        "cargo:rustc-env=SHA3_ASM_SQUEEZE={}",
+        link_name(&target, symbol_prefix, "SHA3_squeeze")
+    );
+
     let flavor = cryptogams_script_flavor(&target);
     eprintln!("selected cryptogams script flavor: {flavor:?}");
     run_perlasm(&script, flavor.as_deref(), &sha3);
@@ -28,7 +38,6 @@ fn main() {
     // hash results.
     //
     // Instead, we rename the symbols with a prefix, so that the symbols do not conflict.
-    let symbol_prefix = "KECCAK_ASM";
     let preprocessor_renames = ["SHA3_squeeze", "SHA3_absorb"];
 
     cc.file(&sha3);
@@ -48,18 +57,29 @@ fn main() {
     } else {
         // we do not want to define anything for msvc + arm
         for symbol in preprocessor_renames {
-            // symbols with a _cext suffix are also shared
-            let symbol_cext = format!("{symbol}_cext");
-            for symbol in [symbol, &symbol_cext] {
+            for suffix in ["", "_cext", "_neon", "_kimd"] {
+                let symbol = format!("{symbol}{suffix}");
                 // sometimes the symbols have underscores
                 cc.define(&format!("_{symbol}"), format!("_{symbol_prefix}_{symbol}").as_str());
                 // and sometimes they do not
-                cc.define(symbol, format!("{symbol_prefix}_{symbol}").as_str());
+                cc.define(&symbol, format!("{symbol_prefix}_{symbol}").as_str());
             }
         }
     }
 
     cc.compile("keccak");
+}
+
+fn link_name(target: &Target, prefix: &str, symbol: &str) -> String {
+    // Match OpenSSL's ARM SHA3 provider path: only absorb is routed to the cext
+    // symbol, while squeeze stays on the base implementation.
+    let suffix =
+        if symbol == "SHA3_absorb" && target.arch == "aarch64" && target.has_feature("sha3") {
+            "_cext"
+        } else {
+            ""
+        };
+    format!("{prefix}_{symbol}{suffix}")
 }
 
 fn cryptogams_script(target: &Target) -> &'static str {
