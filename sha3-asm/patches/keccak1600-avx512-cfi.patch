@@ -1,0 +1,98 @@
+--- a/keccak1600-avx512.pl
++++ b/keccak1600-avx512.pl
+@@ -128,12 +128,25 @@
+ my ($C00,$D00) = @T[0..1];
+ my ($k00001,$k00010,$k00100,$k01000,$k10000,$k11111) = map("%k$_",(1..6));
+ 
++$flavour = shift;
++$output  = shift;
++if ($flavour =~ /\./) { $output = $flavour; undef $flavour; }
++
++$0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
++( $xlate="${dir}x86_64-xlate.pl" and -f $xlate ) or
++( $xlate="${dir}../../perlasm/x86_64-xlate.pl" and -f $xlate) or
++die "can't locate x86_64-xlate.pl";
++
++open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
++*STDOUT=*OUT;
++
+ $code.=<<___;
+ .text
+ 
+ .type	__KeccakF1600,\@function
+ .align	32
+ __KeccakF1600:
++.cfi_startproc
+ 	lea		iotas(%rip),%r10
+ 	mov		\$12,%eax
+ 	jmp		.Loop_avx512
+@@ -270,6 +283,7 @@
+ 	jnz		.Loop_avx512
+ 
+ 	ret
++.cfi_endproc
+ .size	__KeccakF1600,.-__KeccakF1600
+ ___
+ 
+@@ -278,9 +292,14 @@
+ 
+ $code.=<<___;
+ .globl	SHA3_absorb
+-.type	SHA3_absorb,\@function
++.type	SHA3_absorb,\@function,4
+ .align	32
+ SHA3_absorb:
++.cfi_startproc
++	push	%rbp
++.cfi_push	%rbp
++	mov	%rsp,%rbp
++.cfi_def_cfa_register	%rbp
+ 	mov	%rsp,%r11
+ 
+ 	lea	-320(%rsp),%rsp
+@@ -380,13 +399,22 @@
+ 
+ 	lea	(%r11),%rsp
+ 	lea	($len,$bsz),%rax		# return value
++	pop	%rbp
++.cfi_restore	%rbp
++.cfi_def_cfa	%rsp,8
+ 	ret
++.cfi_endproc
+ .size	SHA3_absorb,.-SHA3_absorb
+ 
+ .globl	SHA3_squeeze
+-.type	SHA3_squeeze,\@function
++.type	SHA3_squeeze,\@function,4
+ .align	32
+ SHA3_squeeze:
++.cfi_startproc
++	push	%rbp
++.cfi_push	%rbp
++	mov	%rsp,%rbp
++.cfi_def_cfa_register	%rbp
+ 	mov	%rsp,%r11
+ 
+ 	lea	96($A_flat),$A_flat
+@@ -480,7 +508,11 @@
+ 	vzeroupper
+ 
+ 	lea	(%r11),%rsp
++	pop	%rbp
++.cfi_restore	%rbp
++.cfi_def_cfa	%rsp,8
+ 	ret
++.cfi_endproc
+ .size	SHA3_squeeze,.-SHA3_squeeze
+ 
+ .align	64
+@@ -542,5 +574,8 @@
+ .asciz	"Keccak-1600 absorb and squeeze for AVX-512F, CRYPTOGAMS by <appro\@openssl.org>"
+ ___
+ 
+-print $code;
++foreach (split("\n",$code)) {
++	print $_, "\n";
++}
++
+ close STDOUT;
