@@ -202,10 +202,10 @@ fn maybe_patch_script<'a>(script: &'a str) -> Cow<'a, str> {
             // whose stem is a prefix of the VL one.
             let stem = script_path.file_stem().unwrap().to_str().unwrap();
             if name.ends_with(".patch")
-                && name
-                    .trim_end_matches(".patch")
-                    .rsplit_once('-')
-                    .is_some_and(|(patch_stem, _)| patch_stem == stem)
+                && matches!(
+                    name.trim_end_matches(".patch").rsplit_once('-'),
+                    Some((patch_stem, _)) if patch_stem == stem
+                )
             {
                 Some(e.path())
             } else {
