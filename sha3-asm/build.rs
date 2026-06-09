@@ -339,9 +339,12 @@ impl Target {
     }
 
     fn is_zen5_target(&self) -> bool {
-        // Cargo/rustc do not expose an x86 CPU family/model cfg. For native Zen 5,
-        // the target feature set includes these two features; Zen 4 lacks both,
-        // and Sapphire Rapids lacks avx512vp2intersect.
+        // Cargo/rustc do not expose an x86 CPU family/model cfg. This is a
+        // target-feature heuristic, not exact CPU identification: native Zen 5
+        // expands to both features below, while Zen 4 lacks both. The checked
+        // Intel target CPUs do not set both: Tiger Lake has avx512vp2intersect
+        // without avxvnni, and newer Intel server CPUs have avxvnni without
+        // avx512vp2intersect. Explicit feature flags can still fool this.
         rustflags_codegen_option_is("target-cpu", "znver5")
             || self.is_native_zen5_target()
             || self.has_zen5_target_features()
