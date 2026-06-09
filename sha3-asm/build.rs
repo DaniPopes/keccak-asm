@@ -74,7 +74,7 @@ fn link_name(target: &Target, prefix: &str, symbol: &str) -> String {
     // OpenSSL only wires the ARM SHA3 cext absorb symbol because its squeeze
     // path uses a newer five-argument ABI. These cryptogams sources expose the
     // old four-argument ABI, so both cext symbols match our direct bindings.
-    let suffix = if target.arch == "aarch64" && target.has_feature("sha3") { "_cext" } else { "" };
+    let suffix = if target.use_arm_sha3_cext() { "_cext" } else { "" };
     format!("{prefix}_{symbol}{suffix}")
 }
 
@@ -173,7 +173,7 @@ fn cryptogams_script_flavor(target: &Target) -> Option<String> {
     .map(String::from);
 
     if let Some(s) = &mut flavor {
-        if target.arch == "aarch64" && target.has_feature("sha3") {
+        if target.use_arm_sha3_cext() {
             s.push_str("+sha3");
         }
     }
@@ -296,6 +296,7 @@ fn run_perlasm(path: &str, flavor: Option<&str>, to: &Path) {
 
 struct Target {
     arch: String,
+    vendor: String,
     os: String,
     env: String,
     family: String,
@@ -306,6 +307,7 @@ impl Target {
     fn from_env() -> Self {
         Self {
             arch: env("CARGO_CFG_TARGET_ARCH"),
+            vendor: env("CARGO_CFG_TARGET_VENDOR"),
             os: env("CARGO_CFG_TARGET_OS"),
             env: env("CARGO_CFG_TARGET_ENV"),
             family: env("CARGO_CFG_TARGET_FAMILY"),
@@ -327,6 +329,10 @@ impl Target {
 
     fn has_feature(&self, feature: &str) -> bool {
         self.features.iter().any(|f| f == feature)
+    }
+
+    fn use_arm_sha3_cext(&self) -> bool {
+        self.arch == "aarch64" && self.vendor == "apple" && self.has_feature("sha3")
     }
 }
 
