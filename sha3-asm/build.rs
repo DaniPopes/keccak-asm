@@ -217,6 +217,13 @@ fn maybe_patch_script<'a>(script: &'a str) -> Cow<'a, str> {
 
     let out_dir = env("OUT_DIR");
     let patched = Path::new(&out_dir).join(script_name);
+    // The sibling-symlink loop below may have planted `OUT_DIR/<script_name>` as a
+    // symlink back to the source on a previous run that selected a different script
+    // (the build script re-runs in the same OUT_DIR when e.g. `SHA3_ASM_SCRIPT`
+    // changes). `fs::copy` follows the symlink and opens the destination with
+    // truncate, which would zero out the checked-in source before reading it.
+    // Remove whatever is at the destination so the copy creates a fresh file.
+    let _ = fs::remove_file(&patched);
     fs::copy(script, &patched).unwrap();
 
     // Symlink sibling files (e.g. x86_64-xlate.pl) so patched scripts can find them.
