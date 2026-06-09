@@ -332,6 +332,7 @@ impl Target {
     }
 
     fn use_arm_sha3_cext(&self) -> bool {
+        // The ARM SHA3 crypto extension path has only been tested to perform better on Apple.
         self.arch == "aarch64" && self.vendor == "apple" && self.has_feature("sha3")
     }
 }
