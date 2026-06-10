@@ -117,7 +117,7 @@ fn cryptogams_script(target: &Target) -> &'static str {
             //     "cryptogams/x86_64/keccak1600-apx.pl"
             // } else
             if target.is_zen5_target() {
-                "cryptogams/x86_64/keccak1600-avx512.pl"
+                "cryptogams/x86_64/keccak1600-x86_64.pl"
             } else if target.has_feature("avx512vl") {
                 "cryptogams/x86_64/keccak1600-avx512vl.pl"
             // } else if target.has_feature("avx512f") {
