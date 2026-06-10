@@ -110,16 +110,16 @@ fn cryptogams_script(target: &Target) -> &'static str {
                 panic!("x86 targets require MMX support")
             }
         }
+        // See https://github.com/DaniPopes/bench-keccak256 for why this order is chosen.
         "x86_64" => {
             // TODO: OpenSSL has not enabled this yet.
             // if target.has_feature("apxf") {
             //     "cryptogams/x86_64/keccak1600-apx.pl"
             // } else
-            if target.has_feature("avx512vl") {
+            if target.is_zen5_target() {
+                "cryptogams/x86_64/keccak1600-x86_64.pl"
+            } else if target.has_feature("avx512vl") {
                 "cryptogams/x86_64/keccak1600-avx512vl.pl"
-            // These are obsolete, plain x86_64 implementation is faster:
-            // https://github.com/DaniPopes/bench-keccak256
-
             // } else if target.has_feature("avx512f") {
             //     "cryptogams/x86_64/keccak1600-avx512.pl"
             // } else if target.has_feature("avx2") {
@@ -335,6 +335,59 @@ impl Target {
         // The ARM SHA3 crypto extension path has only been tested to perform better on Apple.
         self.arch == "aarch64" && self.vendor == "apple" && self.has_feature("sha3")
     }
+
+    fn is_zen5_target(&self) -> bool {
+        // Cargo/rustc do not expose an x86 CPU family/model cfg. This is a
+        // target-feature heuristic, not exact CPU identification: native Zen 5
+        // expands to both features below, while Zen 4 lacks both. The checked
+        // Intel target CPUs do not set both: Tiger Lake has avx512vp2intersect
+        // without avxvnni, and newer Intel server CPUs have avxvnni without
+        // avx512vp2intersect. Explicit feature flags can still fool this.
+        rustflags_codegen_option_is("target-cpu", "znver5")
+            || self.is_native_zen5_target()
+            || self.has_zen5_target_features()
+    }
+
+    fn is_native_zen5_target(&self) -> bool {
+        rustflags_codegen_option_is("target-cpu", "native") && self.has_zen5_target_features()
+    }
+
+    fn has_zen5_target_features(&self) -> bool {
+        self.has_feature("avx512vp2intersect") && self.has_feature("avxvnni")
+    }
+}
+
+fn rustflags_codegen_option_is(key: &str, value: &str) -> bool {
+    match maybe_env("CARGO_ENCODED_RUSTFLAGS") {
+        Ok(flags) => {
+            let mut codegen = false;
+            for flag in flags.split('\x1f') {
+                if flag == "-C" || flag == "--codegen" {
+                    codegen = true;
+                } else if let Some(option) = flag.strip_prefix("-C") {
+                    if codegen_option_is(option, key, value) {
+                        return true;
+                    }
+                } else if let Some(option) = flag.strip_prefix("--codegen=") {
+                    if codegen_option_is(option, key, value) {
+                        return true;
+                    }
+                } else if codegen {
+                    if codegen_option_is(flag, key, value) {
+                        return true;
+                    }
+                    codegen = false;
+                }
+            }
+
+            false
+        }
+        Err(_) => false,
+    }
+}
+
+fn codegen_option_is(option: &str, key: &str, value: &str) -> bool {
+    option.strip_prefix(key).and_then(|option| option.strip_prefix('=')) == Some(value)
 }
 
 #[track_caller]
