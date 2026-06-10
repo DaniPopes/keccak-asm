@@ -110,6 +110,7 @@ fn cryptogams_script(target: &Target) -> &'static str {
                 panic!("x86 targets require MMX support")
             }
         }
+        // See https://github.com/DaniPopes/bench-keccak256 for why this order is chosen.
         "x86_64" => {
             // TODO: OpenSSL has not enabled this yet.
             // if target.has_feature("apxf") {
@@ -119,9 +120,6 @@ fn cryptogams_script(target: &Target) -> &'static str {
                 "cryptogams/x86_64/keccak1600-x86_64.pl"
             } else if target.has_feature("avx512vl") {
                 "cryptogams/x86_64/keccak1600-avx512vl.pl"
-            // These are obsolete, plain x86_64 implementation is faster:
-            // https://github.com/DaniPopes/bench-keccak256
-
             // } else if target.has_feature("avx512f") {
             //     "cryptogams/x86_64/keccak1600-avx512.pl"
             // } else if target.has_feature("avx2") {
