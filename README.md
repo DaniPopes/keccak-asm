@@ -4,9 +4,7 @@ Simple wrappers for SHA-3 algorithms written in assembly.
 
 Forked from OpenSSL, [Cryptogams](https://github.com/dot-asm/cryptogams), and [RustCrypto's `sha3`](https://github.com/RustCrypto/hashes/tree/master/sha3).
 
-> [!WARNING]
-> Code is somewhat [tested](./tests/test.rs) and [benchmarked](https://github.com/DaniPopes/bench-keccak256).
-> Use at your own risk.
+These crates have been extensively used in production as the main `keccak256` backend in the [Ethereum client Reth](https://github.com/paradigmxyz/reth) since [v0.1.0-alpha.15 (January 2024)](https://github.com/paradigmxyz/reth/commit/5a623a9c1285d986fc46f1091d58d7a388323457).
 
 ## Support
 
