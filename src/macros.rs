@@ -76,7 +76,10 @@ macro_rules! impl_sha3 {
             ///
             /// See: <https://github.com/rust-lang/rust/issues/146056>
             pub fn digest(data: impl AsRef<[u8]>) -> Output<Self> {
-                let data = data.as_ref();
+                Self::digest_inner(data.as_ref())
+            }
+
+            fn digest_inner(data: &[u8]) -> Output<Self> {
                 let mut out = core::mem::MaybeUninit::<Output<Self>>::uninit();
                 unsafe {
                     crate::backend::digest::<{ <$rate>::USIZE }, $pad>(
