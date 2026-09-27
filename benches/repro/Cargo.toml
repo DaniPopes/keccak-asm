@@ -1,0 +1,40 @@
+[package]
+name = "bench-keccak256"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.89"
+publish = false
+
+[dependencies]
+cfg-if = "1"
+libc = "0.2"
+anyhow = "1"
+rand = "0.10"
+
+sha3 = "0.12.0"
+tiny-keccak = { version = "2.0.2", features = ["keccak"] }
+keccak-asm = { path = "../.." }
+sha3-asm = { path = "../../sha3-asm" }
+xkcp-rs = "0.0.5"
+
+[dev-dependencies]
+criterion = "0.8"
+hex = "0.4.3"
+
+[profile.release]
+lto = true
+opt-level = 3
+panic = "abort"
+codegen-units = 1
+
+debug = 2
+strip = false
+
+[[bench]]
+name = "bench"
+harness = false
+
+[workspace]
+
+[features]
+tail-sharing = []

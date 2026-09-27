@@ -16,45 +16,24 @@ The earlier five-configuration matrix used
 dispatch and return-value helpers. Do not attribute its numbers to the latest
 implementation.
 
-The measurement harness is a separate Cargo workspace at `target/investigation`.
-It is **not tracked in Git**. A clone of the repository alone cannot reproduce
-these measurements. The exact harness, lockfile, archived stack backend,
-analysis scripts, and original raw results are in
-[`target/keccak-benchmark-repro.tar.gz`](target/keccak-benchmark-repro.tar.gz).
-Its SHA-256 is:
+The complete harness is checked in at `benches/repro`, including its Cargo.lock,
+archived stack backend, analysis scripts, and raw measurements. No local archive,
+ignored source, or files from the author's machine are required.
 
-```text
-bf5fae46fd2ef997ebe3ecf9041c2b945ba77155c6322267bf3241cb33901e93
-```
-
-Copy this archive somewhere outside `target/` before running `cargo clean`,
-and transfer it with this guide when reproducing on another machine. The
-archive contains source and results, not compiled binaries or a Rust toolchain.
-Neither it nor the other `target/` artifacts will arrive through Git.
-
-On the existing machine, use the existing `target/investigation` directory.
-On a fresh checkout, restore the bundle into that exact relative location:
+Start from a fresh clone of this branch:
 
 ```bash
-# Substitute the location where you saved the archive.
-sha256sum /path/to/keccak-benchmark-repro.tar.gz
-mkdir -p target/investigation
-tar -xzf /path/to/keccak-benchmark-repro.tar.gz -C target/investigation
+git clone --recurse-submodules --branch simd-digest-backends https://github.com/DaniPopes/keccak-asm.git
+cd keccak-asm
+mkdir -p target/repro-results
 ```
 
-Do not extract over a modified harness without saving those changes first.
-The manifest's path dependencies assume this directory layout.
-
-For an isolated checkout at the measured revision, use a worktree instead of
-changing a checkout with local edits:
-
-```bash
-git worktree add --detach ../keccak-asm-repro 424a72e1ded758819e23928d2acb94d69670edc9
-cd ../keccak-asm-repro
-git submodule update --init --recursive
-mkdir -p target/investigation
-tar -xzf /path/to/keccak-benchmark-repro.tar.gz -C target/investigation
-```
+Use this branch's harness with its current production code to repeat the latest
+comparison. The historical revisions above identify the code measured originally;
+they do not themselves contain this reproduction package. To repeat an older
+revision, keep the checked-in `benches/repro` directory and change only its two
+path dependencies to an isolated checkout of that revision. Do not overwrite
+local source changes.
 
 The measured Cryptogams submodule revision was
 `680f98c1765a7cb89c193db169ed048599f92186`.
@@ -82,8 +61,15 @@ for the earlier static estimates was version 22.1.8, separate from Rust's LLVM.
 
 Required tools include Cargo/Rust, a C build toolchain, Perl, Clang/libclang for
 the harness's bindings, `taskset`, Linux performance-counter access, and `uv`
-for the Python summaries. `perf` is useful for checking counter access.
-Use the bundled Cargo.lock; the build commands below pass `--locked`.
+for the Python summaries. On Ubuntu, install the native build dependencies with:
+
+```bash
+sudo apt-get update
+sudo apt-get install build-essential pkg-config clang libclang-dev perl git util-linux linux-tools-generic
+```
+
+Install Rust and `uv` through your normal toolchain setup before building. `perf` is useful for checking counter access.
+Use the checked-in Cargo.lock; the build commands below pass `--locked`.
 
 Record the environment alongside each new run:
 
@@ -112,7 +98,7 @@ from all OS work. Expect variation rather than exact decimal matches.
 
 ## What the three implementations mean
 
-The wrappers live in `target/investigation/src/experiment.rs`:
+The wrappers live in `benches/repro/src/experiment.rs`:
 
 | TSV name | Implementation |
 |---|---|
@@ -122,7 +108,7 @@ The wrappers live in `target/investigation/src/experiment.rs`:
 | `empty` | Control function that returns zero bytes; it measures some loop/call overhead. |
 
 The assembly baseline is this explicit wrapper, not an untouched release of
-keccak-asm's streaming API. The stack baseline is the bundled source snapshot,
+keccak-asm's streaming API. The stack baseline is the checked-in source snapshot,
 not the current backend checked out under another name. Preserve it exactly;
 changing it changes the comparison.
 
@@ -146,12 +132,12 @@ unset SHA3_ASM_SCRIPT CARGO_ENCODED_RUSTFLAGS
 
 RUSTFLAGS='-Ctarget-cpu=native' \
 CARGO_TARGET_DIR=target/metrics-native \
-cargo build --release --locked --manifest-path target/investigation/Cargo.toml \
+cargo build --release --locked --manifest-path benches/repro/Cargo.toml \
   > target/repro-results/build-native.log 2>&1
 
 RUSTFLAGS='-Ctarget-cpu=x86-64-v3' \
 CARGO_TARGET_DIR=target/metrics-avx2 \
-cargo build --release --locked --manifest-path target/investigation/Cargo.toml \
+cargo build --release --locked --manifest-path benches/repro/Cargo.toml \
   > target/repro-results/build-avx2.log 2>&1
 ```
 
@@ -260,12 +246,12 @@ cycles/hash stays similar.
 
 ## Recreate the reported table
 
-The bundled script checks counter scheduling and requires five samples per
+The checked-in script checks counter scheduling and requires five samples per
 runtime-throughput group. Copy it next to the new TSVs so it reads the new
 results rather than the archived originals:
 
 ```bash
-cp target/investigation/results/current-dyn/summarize.py target/repro-results/
+cp benches/repro/results/current-dyn/summarize.py target/repro-results/
 uv run --no-project python target/repro-results/summarize.py
 ```
 
@@ -280,8 +266,8 @@ rounded to whole cycles/hash, were:
 | 4,096 | 26,374 | 29,053 | 30,774 | 30,537 |
 | 131,072 | 821,125 | 901,656 | 956,566 | 948,526 |
 
-The original full latest table and raw samples remain in
-`target/investigation/results/current-dyn/`. Differences near 1% need repeat
+The original raw samples remain in
+`benches/repro/results/current-dyn/`. Differences near 1% need repeat
 runs and sample-spread checks before treating them as a stable gain or loss.
 
 To export all shapes, modes, and metrics from the new runs, use:
@@ -336,17 +322,17 @@ configurations, then run their binaries with the same `matrix` command:
 ```bash
 RUSTFLAGS='-Ctarget-cpu=x86-64' \
 CARGO_TARGET_DIR=target/metrics-scalar \
-cargo build --release --locked --manifest-path target/investigation/Cargo.toml
+cargo build --release --locked --manifest-path benches/repro/Cargo.toml
 
 SHA3_ASM_SCRIPT=cryptogams/x86_64/keccak1600-avx2.pl \
 RUSTFLAGS='-Ctarget-cpu=x86-64-v3' \
 CARGO_TARGET_DIR=target/metrics-avx2-asm \
-cargo build --release --locked --manifest-path target/investigation/Cargo.toml
+cargo build --release --locked --manifest-path benches/repro/Cargo.toml
 
 SHA3_ASM_SCRIPT=cryptogams/x86_64/keccak1600-avx512.pl \
 RUSTFLAGS='-Ctarget-cpu=native' \
 CARGO_TARGET_DIR=target/metrics-avx512-asm \
-cargo build --release --locked --manifest-path target/investigation/Cargo.toml
+cargo build --release --locked --manifest-path benches/repro/Cargo.toml
 
 for config in scalar avx2-asm avx512-asm; do
   taskset -c 12 "target/metrics-$config/release/bench-keccak256" matrix \
@@ -360,10 +346,10 @@ forced ZMM configuration compares Rust AVX-512 against assembly ZMM AVX-512.
 These overrides change the assembly baseline; they do not replace the current
 Rust backend. Only run binaries on CPUs that support their build flags.
 
-For the historical five-configuration numbers, repeat in an isolated worktree
-at `12ff65fcd6577205e4690fbabfafdea5b523a146`. Archived measurements, models,
-and summaries from that revision are in `results/hardware-matrix/` in the
-bundle. The latest two-configuration run did not remeasure all four handwritten
+For the historical five-configuration numbers, point the harness dependencies
+at an isolated worktree at `12ff65fcd6577205e4690fbabfafdea5b523a146`. Raw
+measurements and round-model inputs from that revision are checked in under
+`benches/repro/results/hardware-matrix/`. The latest two-configuration run did not remeasure all four handwritten
 assembly kernels or native ARM.
 
 ## Inspect the matching assembly
@@ -407,7 +393,7 @@ from that workspace and select `experiment::digest_runtime`, `digest`,
 ```bash
 RUSTFLAGS='-Ctarget-cpu=native' \
 CARGO_TARGET_DIR=target/metrics-native \
-cargo asm --manifest-path target/investigation/Cargo.toml \
+cargo asm --manifest-path benches/repro/Cargo.toml \
   -p bench-keccak256 --bin bench-keccak256 --no-color experiment::digest_runtime
 ```
 
@@ -422,16 +408,15 @@ Keccak-256 absorbs 136 bytes per block. The expected permutation count is
 need a separate padding block. Compare cycles per permutation when explaining
 jumps at 136 or 272 bytes; do not expect cycles/hash to be flat there.
 
-The earlier LLVM-MCA models cover permutation loops only. The bundled
-`results/hardware-matrix/round-*.s` files are the exact model inputs, and
-`mca-*.txt` files hold the outputs. For example:
+The earlier LLVM-MCA models cover permutation loops only. The checked-in
+`results/hardware-matrix/round-*.s` files are the exact model inputs. The commands below regenerate model outputs. For example:
 
 ```bash
 llvm-mca --version
 llvm-mca -mtriple=x86_64-unknown-linux-gnu -mcpu=znver4 -iterations=24 \
-  target/investigation/results/hardware-matrix/round-rust-native.s
+  benches/repro/results/hardware-matrix/round-rust-native.s
 llvm-mca -mtriple=x86_64-unknown-linux-gnu -mcpu=znver4 -iterations=12 \
-  target/investigation/results/hardware-matrix/round-asm-avx512.s
+  benches/repro/results/hardware-matrix/round-asm-avx512.s
 ```
 
 The ZMM assembly loop performs two rounds per iteration, hence 12 iterations;
@@ -455,3 +440,31 @@ non-default target.
 All measurements here are Keccak-256 on one host, with cache-hot inputs and
 single-core execution. They do not establish gains for other hash variants,
 CPUs, batched workloads, cold inputs, or builds with different features.
+
+## Reproduce the shared-tail experiment
+
+The same checked-in harness includes the Linux x86-64 AVX2 tail-sharing prototype,
+behind the benchmark-only `tail-sharing` feature. It does not alter the library.
+The original sample data is in `benches/repro/results/tail-sharing/avx2.tsv`.
+
+```bash
+RUSTFLAGS='-Ctarget-cpu=x86-64-v3' \
+CARGO_TARGET_DIR=target/metrics-tail \
+cargo test --release --locked --manifest-path benches/repro/Cargo.toml \
+  --features tail-sharing --lib experiment::tests::differential
+
+RUSTFLAGS='-Ctarget-cpu=x86-64-v3' \
+CARGO_TARGET_DIR=target/metrics-tail \
+cargo build --release --locked --manifest-path benches/repro/Cargo.toml \
+  --features tail-sharing
+
+taskset -c 12 target/metrics-tail/release/bench-keccak256 matrix \
+  > target/repro-results/tail.tsv 2> target/repro-results/tail.log
+```
+
+This adds a fourth implementation named `tail`: the file has 1,067 lines rather
+than 807. Compare `tail` with `shared` at 20, 32, and 64 bytes; other sizes fall
+back to the current dynamic backend. The all-metrics summary above also handles
+this file. Run on an AVX2-capable Linux x86-64 machine. The original results
+showed 2,010 to 802 bytes of kernel machine code, with cycle differences within
+0.5%. This prototype has not been ported to ARM or AVX-512.
