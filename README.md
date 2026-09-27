@@ -6,6 +6,12 @@ Forked from OpenSSL, [Cryptogams](https://github.com/dot-asm/cryptogams), and [R
 
 These crates have been extensively used in production as the main `keccak256` backend in the [Ethereum client Reth](https://github.com/paradigmxyz/reth) since [v0.1.0-alpha.15 (January 2024)](https://github.com/paradigmxyz/reth/commit/5a623a9c1285d986fc46f1091d58d7a388323457).
 
+The hashes use Rust intrinsics on x86-64 with AVX2 or AVX-512F/AVX-512VL
+enabled, and on AArch64 with NEON. AArch64 also uses SHA-3 instructions when
+enabled for the target. One-shot `digest` calls keep the permutation lanes local
+through absorption and finalization, without allocating a streaming state array.
+Other targets use assembly. Rust 1.89 or newer is required.
+
 ## Support
 
 | Architecture | Linux | macOS | Windows |

@@ -19,6 +19,7 @@ use digest::{
 
 #[macro_use]
 mod macros;
+mod backend;
 mod state;
 use state::Sha3State;
 
@@ -42,4 +43,4 @@ impl_sha3!(Sha3_384, U48, U104, SHA3, "SHA-3-384", "2.16.840.1.101.3.4.2.9");
 impl_sha3!(Sha3_512, U64, U72, SHA3, "SHA-3-512", "2.16.840.1.101.3.4.2.10");
 
 #[doc(hidden)]
-pub use sha3_asm::IMPL;
+pub const IMPL: &str = backend::IMPL;

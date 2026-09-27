@@ -145,6 +145,44 @@ jobs:
           [[ "${{ matrix.target }}" == mips* ]] && FLAGS+=(--release)
           cargo test --workspace --target ${{ matrix.target }} -vv "${FLAGS[@]}"
 
+  simd:
+    name: SIMD ${{ matrix.target }} ${{ matrix.features }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            features: +avx2
+            backend: keccak1600-avx2-rust
+          - target: aarch64-unknown-linux-gnu
+            features: +neon
+            backend: keccak1600-aarch64-rust
+          - target: aarch64-unknown-linux-gnu
+            features: +neon,+sha3
+            backend: keccak1600-aarch64-rust
+    env:
+      RUSTFLAGS: -Ctarget-feature=${{ matrix.features }} -Dwarnings
+      QEMU_CPU: max
+      KECCAK_TEST_BACKEND: ${{ matrix.backend }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+          components: clippy
+      - uses: taiki-e/setup-cross-toolchain-action@v1
+        with:
+          target: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --workspace --all-features --target ${{ matrix.target }}
+      - run: cargo test --workspace --release --no-default-features --target ${{ matrix.target }}
+      - run: cargo test --workspace --release --all-features --target ${{ matrix.target }}
+      - run: cargo clippy --workspace --all-targets --all-features --target ${{ matrix.target }} -- -Dwarnings
+
   msrv:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -154,7 +192,7 @@ jobs:
           submodules: recursive
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "1.64" # MSRV
+          toolchain: "1.89" # MSRV
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
@@ -162,6 +200,10 @@ jobs:
       - run: cargo build --workspace
         env:
           RUSTFLAGS: -Dwarnings
+      - name: Check SIMD backends on MSRV
+        run: |
+          RUSTFLAGS="-Ctarget-feature=+avx2 -Dwarnings" cargo check --workspace --all-targets --all-features
+          RUSTFLAGS="-Ctarget-feature=+avx512f,+avx512vl -Dwarnings" cargo check --workspace --all-targets --all-features
 
   clippy:
     runs-on: ubuntu-latest
