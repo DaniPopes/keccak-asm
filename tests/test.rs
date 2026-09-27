@@ -74,6 +74,12 @@ fn check_all(input: &[u8]) {
     if let Ok(input) = input.try_into() {
         assert_eq!(inspect_keccak256_64(input), digest);
     }
+    if let Ok(input) = input.try_into() {
+        assert_eq!(inspect_keccak256_20(input), digest);
+    }
+    if let Ok(input) = input.try_into() {
+        assert_eq!(inspect_keccak256_32(input), digest);
+    }
     check::<keccak_asm::Keccak384, sha3::Keccak384>(
         input,
         &keccak_asm::Keccak384::digest(input),
@@ -203,5 +209,17 @@ pub fn inspect_keccak256(input: &[u8]) -> [u8; 32] {
 #[unsafe(no_mangle)]
 #[inline(never)]
 pub fn inspect_keccak256_64(input: &[u8; 64]) -> [u8; 32] {
+    keccak_asm::Keccak256::digest(input).into()
+}
+
+#[unsafe(no_mangle)]
+#[inline(never)]
+pub fn inspect_keccak256_20(input: &[u8; 20]) -> [u8; 32] {
+    keccak_asm::Keccak256::digest(input).into()
+}
+
+#[unsafe(no_mangle)]
+#[inline(never)]
+pub fn inspect_keccak256_32(input: &[u8; 32]) -> [u8; 32] {
     keccak_asm::Keccak256::digest(input).into()
 }
