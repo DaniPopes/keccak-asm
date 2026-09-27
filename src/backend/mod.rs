@@ -25,8 +25,22 @@ pub(crate) use selected::{absorb, squeeze, IMPL};
 
 #[inline(always)]
 pub(crate) unsafe fn digest<const RATE: usize, const PAD: u8>(input: &[u8], output: *mut u8) {
+    match input.len() {
+        20 => digest_inner::<RATE, PAD>(input.as_ptr(), 20, output),
+        32 => digest_inner::<RATE, PAD>(input.as_ptr(), 32, output),
+        64 => digest_inner::<RATE, PAD>(input.as_ptr(), 64, output),
+        len => digest_inner::<RATE, PAD>(input.as_ptr(), len, output),
+    }
+}
+
+#[inline(always)]
+unsafe fn digest_inner<const RATE: usize, const PAD: u8>(
+    input: *const u8,
+    len: usize,
+    output: *mut u8,
+) {
     let mut lanes = Lanes::new();
-    lanes.absorb_message::<RATE, PAD>(input.as_ptr(), input.len());
+    lanes.absorb_message::<RATE, PAD>(input, len);
     lanes.squeeze(output, (200 - RATE) / 2);
     #[cfg(feature = "zeroize")]
     lanes.zeroize();
