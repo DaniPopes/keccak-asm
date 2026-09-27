@@ -1,5 +1,14 @@
 //! Compile-time backends for one-shot and streaming hashing.
 
+use core::mem::MaybeUninit;
+use digest::{typenum::Unsigned, Output, OutputSizeUser};
+use selected::Lanes;
+
+#[cfg(feature = "zeroize")]
+use zeroize::Zeroize;
+
+pub(crate) use selected::{absorb, squeeze, IMPL};
+
 cfg_if::cfg_if! {
     if #[cfg(all(target_arch = "x86_64", target_feature = "avx512f", target_feature = "avx512vl"))] {
         mod avx512;
@@ -16,38 +25,51 @@ cfg_if::cfg_if! {
     }
 }
 
-use selected::Lanes;
-
-#[cfg(feature = "zeroize")]
-use zeroize::Zeroize;
-
-pub(crate) use selected::{absorb, squeeze, IMPL};
-
 #[inline(always)]
-pub(crate) unsafe fn digest<const RATE: usize, const PAD: u8>(input: &[u8], output: *mut u8) {
+pub(crate) unsafe fn digest<H: OutputSizeUser, const RATE: usize, const PAD: u8>(
+    input: &[u8],
+) -> Output<H> {
+    // Specialize for common lengths to load input directly into the state registers.
     if const { RATE == 136 && PAD == crate::KECCAK } {
         match input.len() {
-            20 => digest_inner::<RATE, PAD>(input.as_ptr(), 20, output),
-            32 => digest_inner::<RATE, PAD>(input.as_ptr(), 32, output),
-            64 => digest_inner::<RATE, PAD>(input.as_ptr(), 64, output),
-            len => digest_inner::<RATE, PAD>(input.as_ptr(), len, output),
+            20 => digest_const::<H, RATE, PAD, 20>(input.as_ptr()),
+            32 => digest_const::<H, RATE, PAD, 32>(input.as_ptr()),
+            64 => digest_const::<H, RATE, PAD, 64>(input.as_ptr()),
+            len => digest_dyn::<H, RATE, PAD>(input.as_ptr(), len),
         }
     } else {
-        digest_inner::<RATE, PAD>(input.as_ptr(), input.len(), output);
+        digest_dyn::<H, RATE, PAD>(input.as_ptr(), input.len())
     }
 }
 
-#[inline(always)]
-unsafe fn digest_inner<const RATE: usize, const PAD: u8>(
+#[inline(never)]
+unsafe fn digest_const<H: OutputSizeUser, const RATE: usize, const PAD: u8, const LEN: usize>(
+    input: *const u8,
+) -> Output<H> {
+    digest_inline::<H, RATE, PAD>(input, LEN)
+}
+
+#[inline(never)]
+unsafe fn digest_dyn<H: OutputSizeUser, const RATE: usize, const PAD: u8>(
     input: *const u8,
     len: usize,
-    output: *mut u8,
-) {
+) -> Output<H> {
+    digest_inline::<H, RATE, PAD>(input, len)
+}
+
+#[inline(always)]
+unsafe fn digest_inline<H: OutputSizeUser, const RATE: usize, const PAD: u8>(
+    input: *const u8,
+    len: usize,
+) -> Output<H> {
+    assert_eq!(H::OutputSize::USIZE, (200 - RATE) / 2);
+    let mut output = MaybeUninit::<Output<H>>::uninit();
     let mut lanes = Lanes::new();
     lanes.absorb_message::<RATE, PAD>(input, len);
-    lanes.squeeze(output, (200 - RATE) / 2);
+    lanes.squeeze(output.as_mut_ptr().cast(), (200 - RATE) / 2);
     #[cfg(feature = "zeroize")]
     lanes.zeroize();
+    output.assume_init()
 }
 
 #[allow(dead_code)]
