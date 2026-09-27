@@ -1,9 +1,8 @@
 //! Keccak-f[1600] using one state lane per NEON register.
 
+use super::RC;
 use core::{arch::aarch64::*, ptr};
 use sha3_asm::Buffer;
-
-use super::RC;
 
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;

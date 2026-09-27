@@ -30,6 +30,8 @@ keywords.workspace = true
 cfg-if = "1.0"
 digest = "0.10"
 sha3-asm = { version = "0.1.8", path = "sha3-asm" }
+
+# zeroize
 zeroize = { version = "1.6.0", default-features = false, optional = true }
 
 [dev-dependencies]

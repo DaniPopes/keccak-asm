@@ -1,15 +1,8 @@
 //! Keccak-f[1600] using one state lane per XMM register.
 
-use core::{
-    arch::x86_64::{
-        __m128i, _mm_cvtsi128_si64, _mm_cvtsi64_si128, _mm_rol_epi64, _mm_set1_epi64x,
-        _mm_ternarylogic_epi64, _mm_xor_si128,
-    },
-    ptr,
-};
-use sha3_asm::Buffer;
-
 use super::RC;
+use core::{arch::x86_64::*, ptr};
+use sha3_asm::Buffer;
 
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;

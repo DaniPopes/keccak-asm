@@ -42,12 +42,7 @@ impl Lanes {
     #[inline(always)]
     pub(super) unsafe fn load(state: &Buffer) -> Self {
         Self {
-            a00: _mm256_set_epi64x(
-                state[0] as i64,
-                state[0] as i64,
-                state[0] as i64,
-                state[0] as i64,
-            ),
+            a00: _mm256_set1_epi64x(state[0] as i64),
             a01: _mm256_set_epi64x(
                 state[4] as i64,
                 state[3] as i64,
@@ -126,12 +121,7 @@ impl Lanes {
         let tail = super::tail::<PAD>(input, len);
         self.a00 = _mm256_xor_si256(
             self.a00,
-            _mm256_set_epi64x(
-                super::word::<PAD>(input, len, rate, 0, tail) as i64,
-                super::word::<PAD>(input, len, rate, 0, tail) as i64,
-                super::word::<PAD>(input, len, rate, 0, tail) as i64,
-                super::word::<PAD>(input, len, rate, 0, tail) as i64,
-            ),
+            _mm256_set1_epi64x(super::word::<PAD>(input, len, rate, 0, tail) as i64),
         );
         self.a01 = _mm256_xor_si256(
             self.a01,
@@ -192,28 +182,19 @@ impl Lanes {
     #[inline(always)]
     unsafe fn permute(&mut self) {
         for &rc in &RC {
-            let mut t0;
-            let mut t1;
-            let mut t2;
-            let mut t3;
-            let mut t4;
-            let mut t5;
-            let mut t6;
-            let mut t7;
-            let mut t8;
-            t6 = _mm256_shuffle_epi32::<78>(self.a20);
-            t5 = _mm256_xor_si256(self.a41, self.a31);
-            t2 = _mm256_xor_si256(self.a21, self.a11);
+            let mut t6 = _mm256_shuffle_epi32::<78>(self.a20);
+            let mut t5 = _mm256_xor_si256(self.a41, self.a31);
+            let mut t2 = _mm256_xor_si256(self.a21, self.a11);
             t5 = _mm256_xor_si256(t5, self.a01);
             t5 = _mm256_xor_si256(t5, t2);
-            t4 = _mm256_permute4x64_epi64::<147>(t5);
+            let mut t4 = _mm256_permute4x64_epi64::<147>(t5);
             t6 = _mm256_xor_si256(t6, self.a20);
-            t0 = _mm256_permute4x64_epi64::<78>(t6);
-            t1 = _mm256_srli_epi64::<63>(t5);
+            let mut t0 = _mm256_permute4x64_epi64::<78>(t6);
+            let mut t1 = _mm256_srli_epi64::<63>(t5);
             t2 = _mm256_add_epi64(t5, t5);
             t1 = _mm256_or_si256(t1, t2);
-            t8 = _mm256_permute4x64_epi64::<57>(t1);
-            t7 = _mm256_xor_si256(t1, t4);
+            let mut t8 = _mm256_permute4x64_epi64::<57>(t1);
+            let mut t7 = _mm256_xor_si256(t1, t4);
             t7 = _mm256_permute4x64_epi64::<0>(t7);
             t6 = _mm256_xor_si256(t6, self.a00);
             t6 = _mm256_xor_si256(t6, t0);
@@ -225,7 +206,7 @@ impl Lanes {
             t8 = _mm256_blend_epi32::<192>(t8, t1);
             t4 = _mm256_blend_epi32::<3>(t4, t6);
             t8 = _mm256_xor_si256(t8, t4);
-            t3 = _mm256_sllv_epi64(self.a20, _mm256_set_epi64x(41, 36, 18, 3));
+            let mut t3 = _mm256_sllv_epi64(self.a20, _mm256_set_epi64x(41, 36, 18, 3));
             self.a20 = _mm256_srlv_epi64(self.a20, _mm256_set_epi64x(23, 28, 46, 61));
             self.a20 = _mm256_or_si256(self.a20, t3);
             self.a31 = _mm256_xor_si256(self.a31, t8);

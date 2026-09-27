@@ -26,12 +26,10 @@ impl Lanes {
         input: *const u8,
         len: usize,
     ) {
-        let rem = self.absorb(input, len, RATE);
-        let input = input.add(len - rem);
-        let len = rem;
+        let rem = if len >= RATE { self.absorb(input, len, RATE) } else { len };
         let mut block = [0; RATE];
-        core::ptr::copy_nonoverlapping(input, block.as_mut_ptr(), len);
-        block[len] = PAD;
+        core::ptr::copy_nonoverlapping(input.add(len - rem), block.as_mut_ptr(), rem);
+        block[rem] = PAD;
         block[RATE - 1] |= 0x80;
         self.absorb(block.as_ptr(), RATE, RATE);
         #[cfg(feature = "zeroize")]

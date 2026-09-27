@@ -1,8 +1,5 @@
 //! Compile-time backends for one-shot and streaming hashing.
 
-#[cfg(feature = "zeroize")]
-use zeroize::Zeroize;
-
 cfg_if::cfg_if! {
     if #[cfg(all(target_arch = "x86_64", target_feature = "avx512f", target_feature = "avx512vl"))] {
         mod avx512;
@@ -20,6 +17,9 @@ cfg_if::cfg_if! {
 }
 
 use selected::Lanes;
+
+#[cfg(feature = "zeroize")]
+use zeroize::Zeroize;
 
 pub(crate) use selected::{absorb, squeeze, IMPL};
 
