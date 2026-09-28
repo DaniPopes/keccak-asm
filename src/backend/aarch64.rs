@@ -107,16 +107,14 @@ impl Lanes {
         mut input: *const u8,
         mut len: usize,
     ) {
-        loop {
-            let last = len < RATE;
-            self.absorb_block::<PAD>(input, len.min(RATE), RATE);
+        while len >= RATE {
+            self.absorb_block::<0>(input, RATE, RATE);
             self.permute();
-            if last {
-                break;
-            }
             input = input.add(RATE);
             len -= RATE;
         }
+        self.absorb_block::<PAD>(input, len, RATE);
+        self.permute();
     }
 
     #[inline(always)]
