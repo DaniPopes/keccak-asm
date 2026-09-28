@@ -202,8 +202,8 @@ jobs:
           RUSTFLAGS: -Dwarnings
       - name: Check SIMD backends on MSRV
         run: |
-          RUSTFLAGS="-Ctarget-feature=+avx2 -Dwarnings" cargo check --workspace --all-targets --all-features
-          RUSTFLAGS="-Ctarget-feature=+avx512f,+avx512vl -Dwarnings" cargo check --workspace --all-targets --all-features
+          RUSTFLAGS="-Ctarget-feature=+avx2 -Dwarnings" cargo check --workspace --all-targets --all-features --target x86_64-unknown-linux-gnu
+          RUSTFLAGS="-Ctarget-feature=+avx512f,+avx512vl -Dwarnings" cargo check --workspace --all-targets --all-features --target x86_64-unknown-linux-gnu
 
   clippy:
     runs-on: ubuntu-latest
