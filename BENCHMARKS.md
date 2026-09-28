@@ -468,3 +468,11 @@ back to the current dynamic backend. The all-metrics summary above also handles
 this file. Run on an AVX2-capable Linux x86-64 machine. The original results
 showed 2,010 to 802 bytes of kernel machine code, with cycle differences within
 0.5%. This prototype has not been ported to ARM or AVX-512.
+
+## x86 full-block/tail split comparison
+
+The ARM loop split was also measured on AVX2 and AVX-512 on the 7950X. It was
+not adopted on x86: AVX2 had little speed change for 30% more dynamic-kernel
+code, while AVX-512 regressed on short dynamic inputs and grew 46%.
+[Results, raw samples, trial patch, and reproduction commands](benches/repro/results/split-loop/comparison.md)
+are checked in alongside the harness.
