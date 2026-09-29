@@ -7,15 +7,10 @@ use core::ptr;
 use zeroize::Zeroize;
 
 #[inline(never)]
-pub(crate) unsafe fn absorb(
-    state: *mut Buffer,
-    input: *const u8,
-    len: usize,
-    rate: usize,
-) -> usize {
-    let mut lanes = Lanes::load(&*state);
-    let rem = lanes.absorb(input, len, rate);
-    lanes.store(&mut *state);
+pub(crate) unsafe fn absorb(state: &mut Buffer, input: &[u8], rate: usize) -> usize {
+    let mut lanes = Lanes::load(state);
+    let rem = lanes.absorb(input.as_ptr(), input.len(), rate);
+    lanes.store(state);
     rem
 }
 

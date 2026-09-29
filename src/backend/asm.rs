@@ -5,7 +5,7 @@ use crate::backend::Buffer;
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
 
-pub(crate) use sha3_asm::{SHA3_absorb as absorb, SHA3_squeeze as squeeze, IMPL};
+pub(crate) use sha3_asm::{sha3_absorb as absorb, SHA3_squeeze as squeeze, IMPL};
 
 pub(super) struct Lanes(Buffer);
 
@@ -17,7 +17,7 @@ impl Lanes {
 
     #[inline(always)]
     pub(super) unsafe fn absorb(&mut self, input: *const u8, len: usize, rate: usize) -> usize {
-        absorb(&mut self.0, input, len, rate)
+        sha3_asm::SHA3_absorb(&mut self.0, input, len, rate)
     }
 
     #[inline(always)]
