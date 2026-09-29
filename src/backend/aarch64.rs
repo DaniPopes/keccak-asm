@@ -7,7 +7,9 @@ use sha3_asm::Buffer;
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
 
-#[inline(always)]
+// Streaming state lives in memory between calls. Inlining this into `update`/`finalize` keeps the
+// lanes in registers across their `memcpy`/`bzero` calls, which forces spills and reloads.
+#[inline(never)]
 pub(crate) unsafe fn absorb(
     state: *mut Buffer,
     input: *const u8,
