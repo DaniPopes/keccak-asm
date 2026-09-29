@@ -4,7 +4,7 @@ members = ["./", "sha3-asm"]
 [workspace.package]
 version = "0.1.8"
 edition = "2021"
-rust-version = "1.64"
+rust-version = "1.89"
 authors = ["DaniPopes <57450786+DaniPopes@users.noreply.github.com>"]
 license = "BSD-3-Clause"
 exclude = [".gitmodules", "tests"]
