@@ -96,8 +96,7 @@ fn cryptogams_script(target: &Target) -> &'static str {
         );
 
         let p = p.to_str().unwrap().to_string();
-        // TODO(MSRV-1.72): use `String::leak` instead
-        return Box::leak(p.into_boxed_str());
+        return p.leak();
     }
 
     match target.arch.as_str() {
