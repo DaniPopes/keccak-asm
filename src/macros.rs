@@ -75,15 +75,14 @@ macro_rules! impl_sha3 {
             /// Specialization of [`Digest::digest`] to avoid unnecessary intermediate stack copies.
             ///
             /// See: <https://github.com/rust-lang/rust/issues/146056>
+            #[inline]
             pub fn digest(data: impl AsRef<[u8]>) -> Output<Self> {
-                let data = data.as_ref();
-                let mut s = Self::new();
-                let mut out = core::mem::MaybeUninit::<Output<Self>>::uninit();
-                unsafe {
-                    s.state.update(data.as_ptr(), data.len());
-                    s.state.finalize(out.as_mut_ptr().cast());
-                    out.assume_init()
-                }
+                Self::digest_inner(data.as_ref())
+            }
+
+            #[inline]
+            fn digest_inner(data: &[u8]) -> Output<Self> {
+                unsafe { crate::backend::digest::<Self, { <$rate>::USIZE }, $pad>(data) }
             }
         }
     };
