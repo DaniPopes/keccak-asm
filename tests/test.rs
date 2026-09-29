@@ -360,13 +360,22 @@ mod measurements {
         hash: F,
     ) {
         for latency in [false, true].into_iter().filter(|&latency| !latency || N != 0) {
+            let mode = if latency { "latency" } else { "throughput" };
+            if std::env::var("KECCAK_BENCH_FILTER")
+                .is_ok_and(|filter| filter != std::format!("{shape}/{implementation}/{N}/{mode}"))
+            {
+                continue;
+            }
+            let duration = std::env::var("KECCAK_BENCH_NS")
+                .map(|value| value.parse::<u128>().expect("invalid KECCAK_BENCH_NS"))
+                .unwrap_or(10_000_000);
             let mut input = core::array::from_fn::<_, N, _>(|i| i.wrapping_mul(131) as u8);
             assert_eq!(hash(&input), reference(&input));
             kernel(&mut input, 64, latency, hash);
             let start = Instant::now();
             kernel(&mut input, 128, latency, hash);
-            let count = ((10_000_000u128 * 128 / start.elapsed().as_nanos().max(1)) as u64)
-                .clamp(16, 2_000_000);
+            let count = (duration.saturating_mul(128) / start.elapsed().as_nanos().max(1))
+                .clamp(16, 200_000_000) as u64;
             #[cfg(target_os = "linux")]
             let counters = counters::Counters::new().unwrap();
             #[cfg(target_os = "linux")]
@@ -378,7 +387,6 @@ mod measurements {
             let values = counters.stop().unwrap();
             #[cfg(not(target_os = "linux"))]
             let values = [0; 5];
-            let mode = if latency { "latency" } else { "throughput" };
             std::println!("MEASURE\t{}\t{shape}\t{implementation}\t{N}\t{mode}\t{repeat}\t{count}\t{ns}\t{}\t{}\t{}\t{}", keccak_asm::IMPL, values[3], values[4], values[1], values[2]);
         }
     }
