@@ -2,7 +2,7 @@
 members = ["./", "sha3-asm"]
 
 [workspace.package]
-version = "0.1.8"
+version = "0.1.9"
 edition = "2021"
 rust-version = "1.89"
 authors = ["DaniPopes <57450786+DaniPopes@users.noreply.github.com>"]
@@ -34,7 +34,7 @@ digest = "0.10"
 zeroize = { version = "1.6.0", default-features = false, optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-sha3-asm = { version = "0.1.8", path = "sha3-asm" }
+sha3-asm = { version = "0.1.9", path = "sha3-asm" }
 
 [dev-dependencies]
 digest = { version = "0.10", features = ["dev"] }
