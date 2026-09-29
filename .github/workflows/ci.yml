@@ -162,6 +162,12 @@ jobs:
           - target: aarch64-unknown-linux-gnu
             features: +neon,+sha3
             backend: keccak1600-aarch64-rust
+          - target: wasm32-wasip1
+            features: -simd128
+            backend: keccak1600-scalar-rust
+          - target: wasm32-wasip1
+            features: +simd128
+            backend: keccak1600-scalar-rust
     env:
       RUSTFLAGS: -Ctarget-feature=${{ matrix.features }} -Dwarnings
       QEMU_CPU: max
@@ -178,10 +184,10 @@ jobs:
         with:
           target: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test --workspace --all-features --target ${{ matrix.target }}
-      - run: cargo test --workspace --release --no-default-features --target ${{ matrix.target }}
-      - run: cargo test --workspace --release --all-features --target ${{ matrix.target }}
-      - run: cargo clippy --workspace --all-targets --all-features --target ${{ matrix.target }} -- -Dwarnings
+      - run: cargo test -p keccak-asm --all-features --target ${{ matrix.target }}
+      - run: cargo test -p keccak-asm --release --no-default-features --target ${{ matrix.target }}
+      - run: cargo test -p keccak-asm --release --all-features --target ${{ matrix.target }}
+      - run: cargo clippy -p keccak-asm --all-targets --all-features --target ${{ matrix.target }} -- -Dwarnings
 
   msrv:
     runs-on: ubuntu-latest

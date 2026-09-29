@@ -3,9 +3,8 @@
 // Copyright (c) 2017, CRYPTOGAMS by <appro@openssl.org>.
 // Adapted from Andy Polyakov's Cryptogams keccak1600-avx2.pl (BSD-3-Clause).
 
-use super::RC;
+use super::{Buffer, RC};
 use core::{arch::x86_64::*, ptr};
-use sha3_asm::Buffer;
 
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;

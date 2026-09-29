@@ -10,9 +10,13 @@ The hashes use Rust intrinsics on x86-64 with AVX2 or AVX-512F/AVX-512VL
 enabled, and on AArch64 with NEON. AArch64 also uses SHA-3 instructions when
 enabled for the target. One-shot `digest` calls keep the permutation lanes local
 through absorption and finalization, without allocating a streaming state array.
-Other targets use assembly.
+WebAssembly uses a scalar Rust backend. Other targets use assembly.
 
 Rust 1.89 or newer is required.
+
+Build WebAssembly with `cargo build -p keccak-asm --target wasm32-unknown-unknown`
+(or `wasm32-wasip1` for WASI). It does not require Perl or a native assembler.
+The `sha3-asm` crate remains native-only.
 
 ## Support
 

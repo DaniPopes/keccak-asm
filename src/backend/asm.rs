@@ -1,6 +1,6 @@
 //! Adapter for targets using the assembly backend.
 
-use sha3_asm::Buffer;
+use crate::backend::Buffer;
 
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;

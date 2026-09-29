@@ -9,6 +9,8 @@ use zeroize::Zeroize;
 
 pub(crate) use selected::{absorb, squeeze, IMPL};
 
+pub(crate) type Buffer = [u64; 25];
+
 cfg_if::cfg_if! {
     if #[cfg(all(target_arch = "x86_64", target_feature = "avx512f", target_feature = "avx512vl"))] {
         mod avx512;
@@ -19,6 +21,9 @@ cfg_if::cfg_if! {
     } else if #[cfg(all(target_arch = "aarch64", target_feature = "neon", target_endian = "little"))] {
         mod aarch64;
         use aarch64 as selected;
+    } else if #[cfg(target_arch = "wasm32")] {
+        mod scalar;
+        use scalar as selected;
     } else {
         mod asm;
         use asm as selected;
