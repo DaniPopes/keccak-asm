@@ -2,33 +2,45 @@
 
 use core::mem::MaybeUninit;
 use digest::{typenum::Unsigned, Output, OutputSizeUser};
-use selected::Lanes;
-
-#[cfg(feature = "zeroize")]
-use zeroize::Zeroize;
 
 pub(crate) use selected::{absorb, squeeze, IMPL};
 
 pub(crate) type Buffer = [u64; 25];
 
 cfg_if::cfg_if! {
-    if #[cfg(all(target_arch = "x86_64", target_feature = "avx512f", target_feature = "avx512vl"))] {
-        mod avx512;
-        use avx512 as selected;
+    // `commonware_simd` without `std` only uses native vectors whose features are enabled at
+    // compile time, so require them all here instead of falling back to scalar emulation.
+    // Keep in sync with the `commonware-simd` dependency in `Cargo.toml`.
+    if #[cfg(any(
+        all(
+            target_arch = "x86_64",
+            target_feature = "avx512f",
+            target_feature = "avx512bw",
+            target_feature = "gfni",
+            target_feature = "avx512ifma",
+            target_feature = "sha",
+        ),
+        all(
+            target_arch = "aarch64",
+            target_feature = "neon",
+            target_feature = "sha2",
+            target_endian = "little",
+        ),
+        target_arch = "wasm32",
+    ))] {
+        mod simd;
+        use simd as selected;
     } else if #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))] {
         mod avx2;
         use avx2 as selected;
-    } else if #[cfg(all(target_arch = "aarch64", target_feature = "neon", target_endian = "little"))] {
-        mod aarch64;
-        use aarch64 as selected;
-    } else if #[cfg(target_arch = "wasm32")] {
-        mod scalar;
-        use scalar as selected;
     } else {
         mod asm;
         use asm as selected;
     }
 }
+
+/// `LEN` value for inputs whose length is only known at runtime.
+const DYN: usize = usize::MAX;
 
 #[inline(always)]
 pub(crate) unsafe fn digest<H: OutputSizeUser, const RATE: usize, const PAD: u8>(
@@ -51,7 +63,7 @@ pub(crate) unsafe fn digest<H: OutputSizeUser, const RATE: usize, const PAD: u8>
 unsafe fn digest_const<H: OutputSizeUser, const RATE: usize, const PAD: u8, const LEN: usize>(
     input: *const u8,
 ) -> Output<H> {
-    digest_inline::<H, RATE, PAD>(input, LEN)
+    digest_inline::<H, RATE, PAD, LEN>(input, LEN)
 }
 
 #[inline(never)]
@@ -59,21 +71,17 @@ unsafe fn digest_dyn<H: OutputSizeUser, const RATE: usize, const PAD: u8>(
     input: *const u8,
     len: usize,
 ) -> Output<H> {
-    digest_inline::<H, RATE, PAD>(input, len)
+    digest_inline::<H, RATE, PAD, DYN>(input, len)
 }
 
 #[inline(always)]
-unsafe fn digest_inline<H: OutputSizeUser, const RATE: usize, const PAD: u8>(
+unsafe fn digest_inline<H: OutputSizeUser, const RATE: usize, const PAD: u8, const LEN: usize>(
     input: *const u8,
     len: usize,
 ) -> Output<H> {
     assert_eq!(H::OutputSize::USIZE, (200 - RATE) / 2);
     let mut output = MaybeUninit::<Output<H>>::uninit();
-    let mut lanes = Lanes::new();
-    lanes.absorb_message::<RATE, PAD>(input, len);
-    lanes.squeeze(output.as_mut_ptr().cast(), (200 - RATE) / 2);
-    #[cfg(feature = "zeroize")]
-    lanes.zeroize();
+    selected::digest::<RATE, PAD, LEN>(input, len, output.as_mut_ptr().cast());
     output.assume_init()
 }
 

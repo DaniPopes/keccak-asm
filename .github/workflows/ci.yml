@@ -157,17 +157,17 @@ jobs:
             features: +avx2
             backend: keccak1600-avx2-rust
           - target: aarch64-unknown-linux-gnu
-            features: +neon
-            backend: keccak1600-aarch64-rust
+            features: +neon,+sha2
+            backend: keccak1600-simd-rust
           - target: aarch64-unknown-linux-gnu
-            features: +neon,+sha3
-            backend: keccak1600-aarch64-rust
+            features: +neon,+sha2,+sha3
+            backend: keccak1600-simd-rust
           - target: wasm32-wasip1
             features: -simd128
-            backend: keccak1600-scalar-rust
+            backend: keccak1600-simd-rust
           - target: wasm32-wasip1
             features: +simd128
-            backend: keccak1600-scalar-rust
+            backend: keccak1600-simd-rust
     env:
       RUSTFLAGS: -Ctarget-feature=${{ matrix.features }} -Dwarnings
       QEMU_CPU: max
@@ -209,7 +209,7 @@ jobs:
       - name: Check SIMD backends on MSRV
         run: |
           RUSTFLAGS="-Ctarget-feature=+avx2 -Dwarnings" cargo check --workspace --all-targets --all-features --target x86_64-unknown-linux-gnu
-          RUSTFLAGS="-Ctarget-feature=+avx512f,+avx512vl -Dwarnings" cargo check --workspace --all-targets --all-features --target x86_64-unknown-linux-gnu
+          RUSTFLAGS="-Ctarget-feature=+avx512f,+avx512bw,+gfni,+avx512ifma,+sha -Dwarnings" cargo check --workspace --all-targets --all-features --target x86_64-unknown-linux-gnu
 
   clippy:
     runs-on: ubuntu-latest
