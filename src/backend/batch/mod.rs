@@ -180,7 +180,7 @@ unsafe fn absorb<const RATE: usize>(state: &mut [V; 25], rows: [*const u64; LANE
     // one word per row.
     let grouped = RATE / 8 / LANES * LANES;
     seq!(i in 0..25 => {
-        if i < grouped && i % LANES == 0 {
+        if i < grouped && i.is_multiple_of(LANES) {
             let words = load_transposed(rows.map(|row| row.add(i)));
             for (k, word) in words.into_iter().enumerate() {
                 state[i + k] = xor(state[i + k], word);
