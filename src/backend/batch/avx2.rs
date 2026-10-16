@@ -74,3 +74,20 @@ unsafe fn rol<const LEFT: i32, const RIGHT: i32>(a: V) -> V {
         _mm256_or_si256(_mm256_slli_epi64::<LEFT>(a), _mm256_srli_epi64::<RIGHT>(a))
     }
 }
+
+/// Loads four words from each row and returns them transposed: word `i` of every row in
+/// vector `i`.
+#[inline(always)]
+pub(super) unsafe fn load_transposed(rows: [*const u64; LANES]) -> [V; LANES] {
+    let r = rows.map(|row| _mm256_loadu_si256(row.cast()));
+    let t0 = _mm256_unpacklo_epi64(r[0], r[1]);
+    let t1 = _mm256_unpackhi_epi64(r[0], r[1]);
+    let t2 = _mm256_unpacklo_epi64(r[2], r[3]);
+    let t3 = _mm256_unpackhi_epi64(r[2], r[3]);
+    [
+        _mm256_permute2x128_si256::<0x20>(t0, t2),
+        _mm256_permute2x128_si256::<0x20>(t1, t3),
+        _mm256_permute2x128_si256::<0x31>(t0, t2),
+        _mm256_permute2x128_si256::<0x31>(t1, t3),
+    ]
+}

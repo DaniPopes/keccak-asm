@@ -140,20 +140,17 @@ unsafe fn digest_lanes_dyn<H: OutputSizeUser, const RATE: usize, const PAD: u8>(
         let input = inputs[lane];
         let full = input.len() / RATE;
         let rem = input.len() % RATE;
-        let ptr = input.as_ptr().add(full * RATE);
-        let block = &mut last[lane];
-        for (i, word) in block.iter_mut().enumerate().take(rem / 8) {
-            *word = u64::from_le(ptr::read_unaligned(ptr.add(i * 8).cast()));
-        }
-        block[rem / 8] = tail::<PAD>(ptr, rem);
-        block[RATE / 8 - 1] |= 1 << 63;
+        let block = last[lane].as_mut_ptr().cast::<u8>();
+        ptr::copy_nonoverlapping(input.as_ptr().add(full * RATE), block, rem);
+        *block.add(rem) = PAD;
+        *block.add(RATE - 1) |= 0x80;
         blocks[lane] = full + 1;
     }
 
     let mut state = [zero(); 25];
     let steps = blocks.iter().copied().max().unwrap_or(0);
     for step in 0..steps {
-        let ptrs: [*const u64; LANES] = array::from_fn(|lane| {
+        let rows = array::from_fn(|lane| {
             if step + 1 < blocks[lane] {
                 inputs[lane].as_ptr().add(step * RATE).cast()
             } else if step + 1 == blocks[lane] {
@@ -163,12 +160,7 @@ unsafe fn digest_lanes_dyn<H: OutputSizeUser, const RATE: usize, const PAD: u8>(
                 ZERO_BLOCK.as_ptr()
             }
         });
-        seq!(i in 0..25 => {
-            if i < RATE / 8 {
-                let words = array::from_fn(|lane| u64::from_le(ptr::read_unaligned(ptrs[lane].add(i))));
-                state[i] = xor(state[i], set(words));
-            }
-        });
+        absorb::<RATE>(&mut state, rows);
         permute(&mut state);
         if blocks.iter().any(|&b| b == step + 1) {
             squeeze::<H, RATE>(&state, outputs, |lane| blocks[lane] == step + 1);
@@ -179,6 +171,24 @@ unsafe fn digest_lanes_dyn<H: OutputSizeUser, const RATE: usize, const PAD: u8>(
         state.zeroize();
         last.zeroize();
     }
+}
+
+/// XORs one rate block from each row into the state.
+#[inline(always)]
+unsafe fn absorb<const RATE: usize>(state: &mut [V; 25], rows: [*const u64; LANES]) {
+    // Whole groups of `LANES` words load as rows and transpose into state words; the rest load
+    // one word per row.
+    let grouped = RATE / 8 / LANES * LANES;
+    seq!(i in 0..25 => {
+        if i < grouped && i % LANES == 0 {
+            let words = load_transposed(rows.map(|row| row.add(i)));
+            for (k, word) in words.into_iter().enumerate() {
+                state[i + k] = xor(state[i + k], word);
+            }
+        } else if i >= grouped && i < RATE / 8 {
+            state[i] = xor(state[i], set(rows.map(|row| row.add(i).read_unaligned())));
+        }
+    });
 }
 
 #[inline(always)]

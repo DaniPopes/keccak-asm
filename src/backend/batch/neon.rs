@@ -79,3 +79,11 @@ pub(super) unsafe fn rho<const LEFT: i32, const RIGHT: i32>(a: V, d: V) -> V {
         vsriq_n_u64::<RIGHT>(vshlq_n_u64::<LEFT>(a), a)
     }
 }
+
+/// Loads two words from each row and returns them transposed: word `i` of every row in
+/// vector `i`.
+#[inline(always)]
+pub(super) unsafe fn load_transposed(rows: [*const u64; LANES]) -> [V; LANES] {
+    let r = rows.map(|row| vld1q_u64(row));
+    [vzip1q_u64(r[0], r[1]), vzip2q_u64(r[0], r[1])]
+}

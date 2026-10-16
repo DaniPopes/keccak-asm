@@ -51,3 +51,8 @@ pub(super) unsafe fn theta(a: V, b: V) -> V {
 pub(super) unsafe fn rho<const LEFT: i32, const RIGHT: i32>(a: V, d: V) -> V {
     (a ^ d).rotate_left(LEFT as u32)
 }
+
+#[inline(always)]
+pub(super) unsafe fn load_transposed(rows: [*const u64; LANES]) -> [V; LANES] {
+    [rows[0].read_unaligned()]
+}
