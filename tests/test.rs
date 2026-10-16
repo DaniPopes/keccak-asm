@@ -205,6 +205,81 @@ fn digest_exact_allocations() {
     }
 }
 
+#[test]
+fn digest_batch_matches_references() {
+    let data = core::array::from_fn::<_, 4096, _>(|i| (i.wrapping_mul(167) ^ (i >> 8)) as u8);
+    let inputs = |lens: &[usize]| {
+        lens.iter()
+            .enumerate()
+            .map(|(i, &len)| &data[i * 13 % 512..][..len])
+            .collect::<std::vec::Vec<_>>()
+    };
+    // Equal lengths, across every block boundary up to four Keccak-256 blocks.
+    for len in 0..=600 {
+        for count in [1, 2, 3, 4, 5, 8, 9, 17] {
+            check_batch(&inputs(&[len; 17][..count]));
+        }
+    }
+    // Mixed lengths, for every count up to two passes of eight lanes plus one.
+    for count in 0..=17 {
+        let lens = (0..count).map(|i| i * 37 % 600).collect::<std::vec::Vec<_>>();
+        check_batch(&inputs(&lens));
+        let lens = (0..count).map(|i| [20, 32][i % 2]).collect::<std::vec::Vec<_>>();
+        check_batch(&inputs(&lens));
+        let lens =
+            (0..count).map(|i| if i == count / 2 { 31 } else { 32 }).collect::<std::vec::Vec<_>>();
+        check_batch(&inputs(&lens));
+    }
+    for lens in [
+        &[0, 136, 1000, 5, 272, 135, 137, 3000, 64][..],
+        &[3000, 0, 0, 0, 0, 0, 0, 0],
+        &[71, 72, 73, 103, 104, 105, 143, 144, 145],
+    ] {
+        check_batch(&inputs(lens));
+    }
+
+    // Items are passed back by value, in input order.
+    let owned = (0..11).map(|i| data[..i * 29].to_vec()).collect::<std::vec::Vec<_>>();
+    let mut i = 0;
+    keccak_asm::Keccak256::digest_batch(owned.clone(), |input, digest| {
+        assert_eq!(input, owned[i]);
+        assert_eq!(digest, sha3::Keccak256::digest(&input));
+        i += 1;
+    });
+    assert_eq!(i, owned.len());
+}
+
+fn check_batch(inputs: &[&[u8]]) {
+    macro_rules! check {
+        ($($asm:ident => $reference:ident),* $(,)?) => {$({
+            let mut i = 0;
+            keccak_asm::$asm::digest_batch(inputs, |input, digest| {
+                assert!(core::ptr::eq(*input, inputs[i]));
+                assert_eq!(
+                    digest.as_slice(),
+                    sha3::$reference::digest(input).as_slice(),
+                    "{} batch of {} at {i}, lengths {:?}",
+                    stringify!($asm),
+                    inputs.len(),
+                    inputs.iter().map(|input| input.len()).collect::<std::vec::Vec<_>>(),
+                );
+                i += 1;
+            });
+            assert_eq!(i, inputs.len());
+        })*};
+    }
+    check!(
+        Keccak224 => Keccak224,
+        Keccak256 => Keccak256,
+        Keccak384 => Keccak384,
+        Keccak512 => Keccak512,
+        Sha3_224 => Sha3_224,
+        Sha3_256 => Sha3_256,
+        Sha3_384 => Sha3_384,
+        Sha3_512 => Sha3_512,
+    );
+}
+
 #[cfg(feature = "std")]
 mod measurements {
     use super::*;
@@ -420,6 +495,56 @@ mod measurements {
         for repeat in 0..7 {
             macro_rules! sizes { ($($n:literal),*) => { $(size::<$n>(repeat);)* }; }
             sizes!(0, 20, 32, 64, 135, 136, 137, 272, 532, 1024, 4096, 16384, 131072);
+        }
+    }
+
+    /// Returns the fastest of seven samples, in nanoseconds per call.
+    fn time(mut f: impl FnMut()) -> f64 {
+        let duration = std::env::var("KECCAK_BENCH_NS")
+            .map(|value| value.parse::<u128>().expect("invalid KECCAK_BENCH_NS"))
+            .unwrap_or(10_000_000);
+        let start = Instant::now();
+        for _ in 0..16 {
+            f();
+        }
+        let count = (duration.saturating_mul(16) / start.elapsed().as_nanos().max(1)).max(16);
+        (0..7)
+            .map(|_| {
+                let start = Instant::now();
+                for _ in 0..count {
+                    f();
+                }
+                start.elapsed().as_nanos() as f64 / count as f64
+            })
+            .fold(f64::INFINITY, f64::min)
+    }
+
+    #[test]
+    #[ignore = "performance measurements; run in release with --ignored --nocapture"]
+    fn benchmark_batch() {
+        type D = keccak_asm::Keccak256;
+        std::println!("BATCH\tbackend\tlanes\tbytes\tcount\tscalar_ns\tbatch_ns");
+        let data = (0..64 * 300).map(|i| (i * 131) as u8).collect::<std::vec::Vec<_>>();
+        for len in [20, 32, 64, 110, 300] {
+            for count in [1, 2, 3, 4, 8, 16, 64] {
+                let inputs =
+                    (0..count).map(|i| &data[i * len..][..len]).collect::<std::vec::Vec<_>>();
+                let scalar = time(|| {
+                    for input in black_box(&inputs) {
+                        black_box(D::digest(input));
+                    }
+                });
+                let batch = time(|| {
+                    D::digest_batch(black_box(&inputs), |_, digest| {
+                        black_box(digest);
+                    })
+                });
+                std::println!(
+                    "BATCH\t{}\t{}\t{len}\t{count}\t{scalar:.1}\t{batch:.1}",
+                    keccak_asm::IMPL,
+                    D::BATCH_LANES,
+                );
+            }
         }
     }
 }

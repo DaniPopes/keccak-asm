@@ -11,6 +11,8 @@ pub(crate) use selected::{absorb, squeeze, IMPL};
 
 pub(crate) type Buffer = [u64; 25];
 
+pub(crate) mod batch;
+
 cfg_if::cfg_if! {
     if #[cfg(all(target_arch = "x86_64", target_feature = "avx512f", target_feature = "avx512vl"))] {
         mod avx512;

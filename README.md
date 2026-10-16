@@ -8,6 +8,11 @@ These crates have been extensively used in production as the main `keccak256` ba
 
 Rust 1.89 or newer is required.
 
+`digest_batch` hashes several independent messages at once, keeping one Keccak
+state in each 64-bit vector lane: 8 with AVX-512F, 4 with AVX2, and 2 with NEON.
+It passes each digest to a closure in input order. Other targets hash the
+messages one at a time.
+
 ## Support
 
 | Architecture | Linux | macOS | Windows |
