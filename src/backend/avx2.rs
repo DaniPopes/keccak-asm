@@ -336,6 +336,19 @@ pub(crate) unsafe fn squeeze(state: *mut Buffer, output: *mut u8, len: usize, ra
 pub(crate) const IMPL: &str = "keccak1600-avx2-rust";
 
 #[inline(always)]
+pub(super) unsafe fn digest<const RATE: usize, const PAD: u8, const LEN: usize>(
+    input: *const u8,
+    len: usize,
+    output: *mut u8,
+) {
+    let mut lanes = Lanes::new();
+    lanes.absorb_message::<RATE, PAD>(input, len);
+    lanes.squeeze(output, (200 - RATE) / 2);
+    #[cfg(feature = "zeroize")]
+    lanes.zeroize();
+}
+
+#[inline(always)]
 unsafe fn mix(a: __m256i, b: __m256i, c: __m256i, d: __m256i) -> __m256i {
     // Use two blend levels to select [a[0], b[1], c[2], d[3]].
     _mm256_blend_epi32::<60>(_mm256_blend_epi32::<192>(a, d), _mm256_blend_epi32::<48>(b, c))

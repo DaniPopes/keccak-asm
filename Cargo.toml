@@ -36,6 +36,10 @@ zeroize = { version = "1.6.0", default-features = false, optional = true }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 sha3-asm = { version = "0.1.9", path = "sha3-asm" }
 
+# Keep in sync with the backend selection in `src/backend/mod.rs`.
+[target.'cfg(any(all(target_arch = "x86_64", target_feature = "avx512f", target_feature = "avx512bw", target_feature = "gfni", target_feature = "avx512ifma", target_feature = "sha"), all(target_arch = "aarch64", target_feature = "neon", target_feature = "sha2", target_endian = "little"), target_arch = "wasm32"))'.dependencies]
+commonware-simd = { version = "~2026.9.0", default-features = false }
+
 [dev-dependencies]
 digest = { version = "0.10", features = ["dev"] }
 hex = { package = "const-hex", version = "1.10" }

@@ -7,6 +7,19 @@ use zeroize::Zeroize;
 
 pub(crate) use sha3_asm::{sha3_absorb as absorb, SHA3_squeeze as squeeze, IMPL};
 
+#[inline(always)]
+pub(super) unsafe fn digest<const RATE: usize, const PAD: u8, const LEN: usize>(
+    input: *const u8,
+    len: usize,
+    output: *mut u8,
+) {
+    let mut lanes = Lanes::new();
+    lanes.absorb_message::<RATE, PAD>(input, len);
+    lanes.squeeze(output, (200 - RATE) / 2);
+    #[cfg(feature = "zeroize")]
+    lanes.zeroize();
+}
+
 pub(super) struct Lanes(Buffer);
 
 impl Lanes {
