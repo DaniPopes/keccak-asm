@@ -79,7 +79,9 @@ unsafe fn digest_inline<H: OutputSizeUser, const RATE: usize, const PAD: u8>(
 
 /// Finalizes a streaming hasher: absorbs the buffered tail (`len < RATE`) with padding into
 /// `state` and writes the digest to `out`. Leaves `state` unmodified.
-#[inline(always)]
+///
+/// Stays out of line to keep one permutation copy per rate and padding pair.
+#[inline(never)]
 pub(crate) unsafe fn finalize<const RATE: usize, const PAD: u8>(
     state: &Buffer,
     input: *const u8,
