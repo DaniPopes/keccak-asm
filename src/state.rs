@@ -110,8 +110,7 @@ impl<const RATE: usize, const PAD: u8> Sha3State<RATE, PAD> {
     /// `out` must point to at least `(200 - RATE) / 2` bytes.
     #[inline]
     pub(crate) unsafe fn finalize(&mut self, out: *mut u8) {
-        let buf = self.buf();
-        finalize::<RATE, PAD>(&self.A, buf, self.bufsz, out);
+        finalize::<RATE, PAD>(&self.A, self.buf.as_ptr().cast(), self.bufsz, out);
     }
 
     #[inline(always)]
