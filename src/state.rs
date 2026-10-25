@@ -1,6 +1,6 @@
 use core::{mem::MaybeUninit, ptr, slice};
 
-use crate::backend::{absorb, squeeze, Buffer};
+use crate::backend::{absorb, finalize, Buffer};
 
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -14,7 +14,7 @@ const MAX_BUFSZ: usize = (1600 / 8) - 32;
 // while the OpenSSL implementation uses runtime variables stored in this struct
 #[derive(Clone)]
 #[allow(non_snake_case)]
-pub(crate) struct Sha3State<const BITS: usize, const PAD: u8> {
+pub(crate) struct Sha3State<const RATE: usize, const PAD: u8> {
     /// Core state buffer.
     A: Buffer,
     /// Used bytes in the temporary buffer.
@@ -23,7 +23,7 @@ pub(crate) struct Sha3State<const BITS: usize, const PAD: u8> {
     buf: [MaybeUninit<u8>; MAX_BUFSZ],
 }
 
-impl<const BITS: usize, const PAD: u8> Default for Sha3State<BITS, PAD> {
+impl<const RATE: usize, const PAD: u8> Default for Sha3State<RATE, PAD> {
     #[inline(always)]
     fn default() -> Self {
         Self::new()
@@ -31,7 +31,7 @@ impl<const BITS: usize, const PAD: u8> Default for Sha3State<BITS, PAD> {
 }
 
 #[cfg(feature = "zeroize")]
-impl<const BITS: usize, const PAD: u8> Drop for Sha3State<BITS, PAD> {
+impl<const RATE: usize, const PAD: u8> Drop for Sha3State<RATE, PAD> {
     fn drop(&mut self) {
         self.A.zeroize();
         self.buf.zeroize();
@@ -39,11 +39,10 @@ impl<const BITS: usize, const PAD: u8> Drop for Sha3State<BITS, PAD> {
 }
 
 #[cfg(feature = "zeroize")]
-impl<const BITS: usize, const PAD: u8> ZeroizeOnDrop for Sha3State<BITS, PAD> {}
+impl<const RATE: usize, const PAD: u8> ZeroizeOnDrop for Sha3State<RATE, PAD> {}
 
-impl<const BITS: usize, const PAD: u8> Sha3State<BITS, PAD> {
-    const OUT_SIZE: usize = BITS / 8;
-    const BLOCK_SIZE: usize = (1600 - BITS * 2) / 8;
+impl<const RATE: usize, const PAD: u8> Sha3State<RATE, PAD> {
+    const BLOCK_SIZE: usize = RATE;
 
     #[inline(always)]
     pub(crate) fn new() -> Self {
@@ -102,27 +101,17 @@ impl<const BITS: usize, const PAD: u8> Sha3State<BITS, PAD> {
         }
     }
 
-    /// Implementation from [OpenSSL](https://github.com/openssl/openssl/blob/60421893a286bb9eb7fb7c2454b84af9778ffca4/crypto/sha/sha3.c#L87).
+    /// Absorbs the buffered tail with padding and writes the digest to `out`.
+    ///
+    /// Does not update the core state, so the hasher must be dropped or reset afterwards.
     ///
     /// # Safety
     ///
-    /// `out` must point to at least `BITS / 8` bytes.
+    /// `out` must point to at least `(200 - RATE) / 2` bytes.
     #[inline]
     pub(crate) unsafe fn finalize(&mut self, out: *mut u8) {
-        let bsz: usize = Self::BLOCK_SIZE;
-
-        let num = self.bufsz;
-
-        // Pad the data with 10*1. Note that |num| can be |bsz - 1|
-        // in which case both byte operations below are performed on
-        // same byte...
-        memset(self.buf().add(num), 0, bsz - num);
-        *self.buf().add(num) = PAD;
-        *self.buf().add(bsz - 1) |= 0x80;
-
-        absorb(&mut self.A, slice::from_raw_parts(self.buf.as_ptr().cast(), bsz), bsz);
-
-        squeeze(&mut self.A, out, Self::OUT_SIZE, bsz);
+        let buf = self.buf();
+        finalize::<RATE, PAD>(&self.A, buf, self.bufsz, out);
     }
 
     #[inline(always)]
@@ -134,9 +123,4 @@ impl<const BITS: usize, const PAD: u8> Sha3State<BITS, PAD> {
 #[inline(always)]
 unsafe fn memcpy(dst: *mut u8, src: *const u8, count: usize) {
     ptr::copy_nonoverlapping(src, dst, count);
-}
-
-#[inline(always)]
-unsafe fn memset(dst: *mut u8, val: u8, count: usize) {
-    ptr::write_bytes(dst, val, count);
 }

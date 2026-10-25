@@ -7,7 +7,7 @@ use selected::Lanes;
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
 
-pub(crate) use selected::{absorb, squeeze, IMPL};
+pub(crate) use selected::{absorb, IMPL};
 
 pub(crate) type Buffer = [u64; 25];
 
@@ -75,6 +75,23 @@ unsafe fn digest_inline<H: OutputSizeUser, const RATE: usize, const PAD: u8>(
     #[cfg(feature = "zeroize")]
     lanes.zeroize();
     output.assume_init()
+}
+
+/// Finalizes a streaming hasher: absorbs the buffered tail (`len < RATE`) with padding into
+/// `state` and writes the digest to `out`. Leaves `state` unmodified.
+#[inline(always)]
+pub(crate) unsafe fn finalize<const RATE: usize, const PAD: u8>(
+    state: &Buffer,
+    input: *const u8,
+    len: usize,
+    out: *mut u8,
+) {
+    debug_assert!(len < RATE);
+    let mut lanes = Lanes::load(state);
+    lanes.absorb_message::<RATE, PAD>(input, len);
+    lanes.squeeze(out, (200 - RATE) / 2);
+    #[cfg(feature = "zeroize")]
+    lanes.zeroize();
 }
 
 #[allow(dead_code)]

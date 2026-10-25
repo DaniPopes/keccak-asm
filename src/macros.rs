@@ -4,7 +4,7 @@ macro_rules! impl_sha3 {
         #[derive(Clone)]
         pub struct $name {
             #[doc(hidden)]
-            state: Sha3State<{ <$output_size>::USIZE * 8 }, $pad>,
+            state: Sha3State<{ <$rate>::USIZE }, $pad>,
         }
 
         impl Default for $name {
