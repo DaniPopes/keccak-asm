@@ -382,13 +382,6 @@ impl Zeroize for Lanes {
     }
 }
 
-#[inline(always)]
-pub(crate) unsafe fn squeeze(state: *mut Buffer, output: *mut u8, len: usize, rate: usize) {
-    // All supported fixed digests fit in the first rate block.
-    debug_assert!(len <= rate);
-    ptr::copy_nonoverlapping(state.cast::<u8>(), output, len);
-}
-
 pub(crate) const IMPL: &str = "keccak1600-aarch64-rust";
 
 #[inline(always)]

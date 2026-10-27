@@ -355,11 +355,4 @@ impl Zeroize for Lanes {
     }
 }
 
-#[inline(always)]
-pub(crate) unsafe fn squeeze(state: *mut Buffer, output: *mut u8, len: usize, rate: usize) {
-    // All supported fixed digests fit in the first rate block.
-    debug_assert!(len <= rate);
-    Lanes::load(&*state).squeeze(output, len);
-}
-
 pub(crate) const IMPL: &str = "keccak1600-scalar-rust";
