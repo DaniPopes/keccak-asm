@@ -1,4 +1,7 @@
-//! Compile-time backends for one-shot and streaming hashing.
+//! Backends for one-shot and streaming hashing.
+//!
+//! The target features select the backend at compile time. On x86-64 without AVX-512 target
+//! features, the AVX-512 backend is also selected at run time on CPUs that support it.
 
 use core::mem::MaybeUninit;
 use digest::{typenum::Unsigned, Output, OutputSizeUser};
@@ -7,13 +10,17 @@ use selected::Lanes;
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
 
-pub(crate) use selected::{absorb, IMPL};
+pub(crate) use selected::IMPL;
 
 pub(crate) type Buffer = [u64; 25];
 
+#[cfg(target_arch = "x86_64")]
+mod avx512;
+#[cfg(target_arch = "x86_64")]
+mod runtime;
+
 cfg_if::cfg_if! {
     if #[cfg(all(target_arch = "x86_64", target_feature = "avx512f", target_feature = "avx512vl"))] {
-        mod avx512;
         use avx512 as selected;
     } else if #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))] {
         mod avx2;
@@ -28,6 +35,15 @@ cfg_if::cfg_if! {
         mod asm;
         use asm as selected;
     }
+}
+
+#[inline(always)]
+pub(crate) unsafe fn absorb(state: &mut Buffer, input: &[u8], rate: usize) -> usize {
+    #[cfg(target_arch = "x86_64")]
+    if runtime::avx512() {
+        return runtime::absorb(state, input, rate);
+    }
+    selected::absorb(state, input, rate)
 }
 
 #[inline(always)]
@@ -51,6 +67,10 @@ pub(crate) unsafe fn digest<H: OutputSizeUser, const RATE: usize, const PAD: u8>
 unsafe fn digest_const<H: OutputSizeUser, const RATE: usize, const PAD: u8, const LEN: usize>(
     input: *const u8,
 ) -> Output<H> {
+    #[cfg(target_arch = "x86_64")]
+    if runtime::avx512() {
+        return runtime::digest_const::<H, RATE, PAD, LEN>(input);
+    }
     digest_inline::<H, RATE, PAD>(input, LEN)
 }
 
@@ -59,6 +79,10 @@ unsafe fn digest_dyn<H: OutputSizeUser, const RATE: usize, const PAD: u8>(
     input: *const u8,
     len: usize,
 ) -> Output<H> {
+    #[cfg(target_arch = "x86_64")]
+    if runtime::avx512() {
+        return runtime::digest_dyn::<H, RATE, PAD>(input, len);
+    }
     digest_inline::<H, RATE, PAD>(input, len)
 }
 
@@ -89,6 +113,10 @@ pub(crate) unsafe fn finalize<const RATE: usize, const PAD: u8>(
     out: *mut u8,
 ) {
     debug_assert!(len < RATE);
+    #[cfg(target_arch = "x86_64")]
+    if runtime::avx512() {
+        return runtime::finalize::<RATE, PAD>(state, input, len, out);
+    }
     let mut lanes = Lanes::load(state);
     lanes.absorb_message::<RATE, PAD>(input, len);
     lanes.squeeze(out, (200 - RATE) / 2);

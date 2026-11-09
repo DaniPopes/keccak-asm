@@ -477,4 +477,5 @@ impl Zeroize for Lanes {
     }
 }
 
+#[allow(dead_code)]
 pub(crate) const IMPL: &str = "keccak1600-avx512vl-rust";
