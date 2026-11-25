@@ -142,13 +142,13 @@ fn cryptogams_script_flavor(target: &Target) -> Option<String> {
         "arm" => match target.os.as_str() {
             "ios" | "macos" => Some("ios32"),
             "windows" => Some(if target.is_msvc() { "win32" } else { "coff32" }),
-            "linux" => Some("linux32"),
+            "linux" | "android" => Some("linux32"),
             _ => None,
         },
         "aarch64" => match target.os.as_str() {
             "ios" | "macos" => Some("ios64"),
             "windows" => Some(if target.is_msvc() { "win64" } else { "coff64" }),
-            "linux" => Some("linux64"),
+            "linux" | "android" => Some("linux64"),
             _ => None,
         },
         "x86" => match target.os.as_str() {
